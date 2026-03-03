@@ -23,6 +23,7 @@ mod formatting;
 
 use chronicle_core::error::StoreError;
 use chronicle_core::event::Event;
+use chronicle_core::link::EventLink;
 use chronicle_core::query::{EventResult, StructuredQuery, TimelineQuery};
 use chronicle_store::StorageEngine;
 
@@ -115,8 +116,9 @@ impl ChronicleBridge {
         Ok(logged)
     }
 
-    /// Log a slice of `EventResults` as `TextLog` entries in the viewer,
-    /// plus full JSON payloads as `TextDocument` on a child entity path.
+    /// Log a slice of `EventResults` as `TextLog` + `ChronicleEvent` entries
+    /// in the viewer, plus full JSON payloads as `TextDocument` on a child
+    /// entity path.
     fn log_events(&self, results: &[EventResult]) -> Result<(), StoreError> {
         for r in results {
             let path = format!(
@@ -128,6 +130,21 @@ impl ChronicleBridge {
             self.rec
                 .set_timestamp_secs_since_epoch("event_time", r.event.event_time.timestamp() as f64);
 
+            // Native ChronicleEvent archetype (for the time panel)
+            let mut chronicle_event = rerun::archetypes::ChronicleEvent::new(
+                r.event.source.as_str(),
+                r.event.event_type.as_str(),
+            )
+            .with_topic(r.event.topic.as_str());
+            if let Some(ref payload) = r.event.payload {
+                let json = serde_json::to_string(payload).unwrap_or_default();
+                chronicle_event = chronicle_event.with_payload(json);
+            }
+            if let Err(e) = self.rec.log(path.as_str(), &chronicle_event) {
+                tracing::warn!("Failed to log ChronicleEvent: {e}");
+            }
+
+            // TextLog (for the text log view)
             let summary = format_event_summary(&r.event);
             if let Err(e) = self.rec.log(
                 path.as_str(),
@@ -136,6 +153,7 @@ impl ChronicleBridge {
                 tracing::warn!("Failed to log event: {e}");
             }
 
+            // TextDocument payload (for the selection panel)
             if let Some(ref payload) = r.event.payload {
                 let json = serde_json::to_string_pretty(payload).unwrap_or_default();
                 let detail_path = format!("{path}/payload");
@@ -149,6 +167,67 @@ impl ChronicleBridge {
             }
         }
         Ok(())
+    }
+
+    /// Log events and their links together into the Rerun viewer.
+    ///
+    /// Events are logged as `ChronicleEvent` + `TextLog` at `{source}/{event_type}`.
+    /// Links are logged as `ChronicleLink` at
+    /// `_links/{src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}`,
+    /// encoding the source/target entity paths in the link entity path so the
+    /// viewer can resolve arcs without component queries.
+    pub fn log_events_with_links(
+        &self,
+        results: &[EventResult],
+        links: &[EventLink],
+    ) -> Result<(usize, usize), StoreError> {
+        let mut id_to_path: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+
+        for r in results {
+            let path = format!(
+                "{}/{}",
+                r.event.source.as_str(),
+                r.event.event_type.as_str()
+            );
+            id_to_path.insert(r.event.event_id.to_string(), path);
+        }
+
+        self.log_events(results)?;
+        let event_count = results.len();
+
+        let mut link_count = 0;
+        for link in links {
+            let src_id = link.source_event_id.to_string();
+            let tgt_id = link.target_event_id.to_string();
+
+            if let (Some(src_path), Some(tgt_path)) =
+                (id_to_path.get(&src_id), id_to_path.get(&tgt_id))
+            {
+                let link_entity = format!(
+                    "_links/{}/to/{}/{}",
+                    src_path, tgt_path, link.link_type
+                );
+
+                let archetype = rerun::archetypes::ChronicleLink::new(
+                    src_path.as_str(),
+                    tgt_path.as_str(),
+                    link.link_type.as_str(),
+                )
+                .with_confidence(
+                    rerun::components::ChronicleConfidence::from(link.confidence.value()),
+                )
+                .with_reasoning(link.reasoning.as_deref().unwrap_or(""));
+
+                if let Err(e) = self.rec.log_static(link_entity.as_str(), &archetype) {
+                    tracing::warn!("Failed to log link: {e}");
+                } else {
+                    link_count += 1;
+                }
+            }
+        }
+
+        Ok((event_count, link_count))
     }
 }
 

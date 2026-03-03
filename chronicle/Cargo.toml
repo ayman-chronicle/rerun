@@ -55,7 +55,7 @@ datafusion = "52"
 kurrentdb = "1"
 object_store = "0.12"
 parking_lot = "0.12"
-rerun = { version = "0.29", default-features = false, features = ["sdk"] }
+rerun = { path = "../crates/top/rerun", default-features = false, features = ["sdk"] }
 nohash-hasher = "0.2"
 insta = { version = "1", features = ["json"] }
 proptest = "1"

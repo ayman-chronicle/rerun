@@ -18,6 +18,7 @@ use chronicle_core::link::EventLink;
 use chronicle_core::query::{OrderBy, StructuredQuery};
 use chronicle_rerun_bridge::ChronicleBridge;
 use chronicle_store::memory::InMemoryBackend;
+use chronicle_store::traits::{EventLinkStore, EventStore};
 use chronicle_store::StorageEngine;
 
 const CUSTOMERS: u32 = 10;
@@ -576,7 +577,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         offset: 0,
     };
 
-    let text_count = bridge.load_query(&query).await?;
+    let results = engine.events.query_structured(&query).await?;
+    let (text_count, logged_links) = bridge.log_events_with_links(&results, &all_links)?;
 
     let scalar_count = bridge.load_scalars(&query, "amount").await?;
 
@@ -587,7 +589,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=====================");
     println!("Seeded: {event_count} events across 5 sources for {CUSTOMERS} customers");
     println!("Created: {link_count} causal links");
-    println!("Logged: {text_count} TextLog entries to Rerun");
+    println!("Logged: {text_count} TextLog + ChronicleEvent entries to Rerun");
+    println!("Logged: {logged_links} ChronicleLink entries to Rerun");
     println!("Logged: {scalar_count} Scalar data points to Rerun");
     println!();
     println!("The Rerun viewer should be open. Try:");

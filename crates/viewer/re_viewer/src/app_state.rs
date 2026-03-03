@@ -953,15 +953,17 @@ pub fn default_blueprint_panel_width(screen_width: f32) -> f32 {
     (0.35 * screen_width).min(200.0).round()
 }
 
-/// Populate the Chronicle link overlay when a Chronicle-style entity is selected.
+/// Populate the Chronicle link overlay from real `_links/` entity paths in the
+/// recording store.
 ///
-/// Detects entity paths matching Chronicle's `{source}/{event_type}` pattern and
-/// resolves links by searching `row_positions` for sibling source rows. Currently
-/// uses synthetic demo arcs; a real implementation would read EventLink data from
-/// the store.
+/// The bridge logs links at entity paths with the convention:
+///   `_links/{src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}`
+///
+/// This function scans those paths, matches the selected entity against source
+/// or target, and resolves row positions to create real causal arcs.
 fn populate_chronicle_link_overlay(
     selection_state: &ApplicationSelectionState,
-    _recording: &EntityDb,
+    recording: &EntityDb,
     time_panel: &mut re_time_panel::TimePanel,
 ) {
     time_panel.link_overlay.clear();
@@ -982,12 +984,13 @@ fn populate_chronicle_link_overlay(
     };
 
     let path_str = selected_path.to_string();
-
-    // Chronicle entity paths: /source/event_type (logged by the bridge).
-    // Strip leading '/' for source matching.
     let clean_path = path_str.strip_prefix('/').unwrap_or(&path_str);
-    let is_chronicle_path = clean_path.contains('/') && !clean_path.contains("payload");
-    if !is_chronicle_path {
+
+    // Only activate for Chronicle-style entity paths (source/event_type).
+    if !clean_path.contains('/')
+        || clean_path.contains("payload")
+        || clean_path.starts_with("_links")
+    {
         return;
     }
 
@@ -996,65 +999,68 @@ fn populate_chronicle_link_overlay(
         return;
     }
 
-    let selected_y = row_positions
-        .iter()
-        .find(|(path, _)| {
-            let clean = path.strip_prefix('/').unwrap_or(path.as_str());
-            clean_path.starts_with(clean) || clean.contains(clean_path)
-        })
-        .map(|(_, y)| *y);
-
-    let selected_y = match selected_y {
-        Some(y) => y,
-        None => return,
-    };
-
-    let chronicle_sources = ["stripe", "support", "product", "marketing", "billing"];
-    let selected_source = clean_path.split('/').next().unwrap_or("");
-
     let (x_min, x_max) = time_panel.time_area_x_range;
     if x_min >= x_max {
         return;
     }
-    let x_center = (x_min + x_max) / 2.0;
-    let x_spread = (x_max - x_min) * 0.15;
 
     let mut links = Vec::new();
 
-    for (other_path, &other_y) in row_positions.iter() {
-        let clean_other = other_path.strip_prefix('/').unwrap_or(other_path.as_str());
-        let other_source = clean_other.split('/').next().unwrap_or("");
+    for entity_path in recording.sorted_entity_paths() {
+        let ep_str = entity_path.to_string();
+        let ep_clean = ep_str.strip_prefix('/').unwrap_or(&ep_str);
 
-        if clean_other == clean_path
-            || !chronicle_sources.contains(&other_source)
-            || other_source == selected_source
-        {
+        let remainder = match ep_clean.strip_prefix("_links/") {
+            Some(r) => r,
+            None => continue,
+        };
+
+        // Parse: {src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}
+        let parts: Vec<&str> = remainder.split('/').collect();
+        if parts.len() < 6 || parts[2] != "to" {
             continue;
         }
 
-        let link_idx = links.len() as f32;
+        let src_path = format!("{}/{}", parts[0], parts[1]);
+        let tgt_path = format!("{}/{}", parts[3], parts[4]);
+        let link_type = parts[5];
 
-        let (link_type, confidence) = match (selected_source, other_source) {
-            ("stripe", "support") | ("support", "stripe") => ("caused_by", 0.85),
-            ("support", "billing") | ("billing", "support") => ("led_to", 0.90),
-            ("marketing", "product") | ("product", "marketing") => ("campaign_conversion", 0.75),
-            _ => ("related_to", 0.60),
-        };
+        if clean_path != src_path && clean_path != tgt_path {
+            continue;
+        }
 
-        let source_x = x_center - x_spread + link_idx * 30.0;
-        let target_x = x_center + x_spread - link_idx * 20.0;
+        let src_y = row_positions
+            .iter()
+            .find(|(p, _)| {
+                let p_clean = p.strip_prefix('/').unwrap_or(p);
+                p_clean == src_path || p_clean.starts_with(&format!("{src_path}/"))
+            })
+            .map(|(_, y)| *y);
 
-        links.push(re_time_panel::ResolvedLink {
-            source_x,
-            source_y: selected_y,
-            target_x,
-            target_y: other_y,
-            link_type: link_type.to_string(),
-            confidence,
-        });
+        let tgt_y = row_positions
+            .iter()
+            .find(|(p, _)| {
+                let p_clean = p.strip_prefix('/').unwrap_or(p);
+                p_clean == tgt_path || p_clean.starts_with(&format!("{tgt_path}/"))
+            })
+            .map(|(_, y)| *y);
+
+        if let (Some(src_y), Some(tgt_y)) = (src_y, tgt_y) {
+            let x_center = (x_min + x_max) / 2.0;
+            let x_spread = (x_max - x_min) * 0.15;
+            let idx = links.len() as f32;
+
+            links.push(re_time_panel::ResolvedLink {
+                source_x: x_center - x_spread + idx * 20.0,
+                source_y: src_y,
+                target_x: x_center + x_spread - idx * 15.0,
+                target_y: tgt_y,
+                link_type: link_type.to_string(),
+                confidence: 0.85,
+            });
+        }
     }
 
-    links.truncate(5);
     time_panel.link_overlay.set_links(links);
 }
 
