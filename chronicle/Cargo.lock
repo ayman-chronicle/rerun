@@ -747,6 +747,8 @@ dependencies = [
  "chronicle_test_fixtures",
  "chrono",
  "datafusion",
+ "futures",
+ "itoa",
  "kurrentdb",
  "object_store",
  "parking_lot",

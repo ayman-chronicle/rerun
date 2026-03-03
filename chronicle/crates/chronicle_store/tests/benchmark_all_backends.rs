@@ -27,7 +27,7 @@ const PG_URL: &str = "postgres://chronicle:chronicle@localhost:5433/chronicle";
 const KURRENT_URL: &str = "kurrentdb://localhost:2113?tls=false";
 
 const BULK_SIZE: usize = 10_000;
-const BATCH_SIZE: usize = 500;
+const BATCH_SIZE: usize = 5_000;
 const NUM_CUSTOMERS: usize = 200;
 const QUERY_LIMIT: usize = 100_000;
 

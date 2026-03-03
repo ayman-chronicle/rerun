@@ -11,6 +11,7 @@ pub mod query_builder;
 mod schemas;
 
 use chronicle_core::error::StoreError;
+use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
 /// Postgres-backed storage. Implements all storage traits.
@@ -23,9 +24,12 @@ pub struct PostgresBackend {
 }
 
 impl PostgresBackend {
-    /// Connect to Postgres and create a connection pool.
+    /// Connect to Postgres and create a tuned connection pool.
     pub async fn new(database_url: &str) -> Result<Self, StoreError> {
-        let pool = PgPool::connect(database_url)
+        let pool = PgPoolOptions::new()
+            .max_connections(16)
+            .min_connections(2)
+            .connect(database_url)
             .await
             .map_err(|e| StoreError::Connection(e.to_string()))?;
         Ok(Self { pool })
