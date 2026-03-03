@@ -170,7 +170,8 @@ namespace rerun::blueprint::archetypes {
         /// Currently tracked entity.
         ///
         /// If this is a camera, it takes over the camera pose, otherwise follows the entity.
-        EyeControls3D with_tracking_entity(const rerun::components::EntityPath& _tracking_entity
+        EyeControls3D with_tracking_entity(
+            const rerun::components::EntityPath& _tracking_entity
         ) && {
             tracking_entity =
                 ComponentBatch::from_loggable(_tracking_entity, Descriptor_tracking_entity)
@@ -181,7 +182,8 @@ namespace rerun::blueprint::archetypes {
         /// What speed, if any, the camera should spin around the eye-up axis.
         ///
         /// Defaults to zero, meaning no spinning.
-        EyeControls3D with_spin_speed(const rerun::blueprint::components::AngularSpeed& _spin_speed
+        EyeControls3D with_spin_speed(
+            const rerun::blueprint::components::AngularSpeed& _spin_speed
         ) && {
             spin_speed =
                 ComponentBatch::from_loggable(_spin_speed, Descriptor_spin_speed).value_or_throw();

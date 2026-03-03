@@ -235,7 +235,8 @@ namespace rerun::archetypes {
         /// For each ellipsoid, half of its size on its three axes.
         ///
         /// If all components are equal, then it is a sphere with that radius.
-        Ellipsoids3D with_half_sizes(const Collection<rerun::components::HalfSize3D>& _half_sizes
+        Ellipsoids3D with_half_sizes(
+            const Collection<rerun::components::HalfSize3D>& _half_sizes
         ) && {
             half_sizes =
                 ComponentBatch::from_loggable(_half_sizes, Descriptor_half_sizes).value_or_throw();
@@ -301,7 +302,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_fill_mode` should
         /// be used when logging a single row's worth of data.
-        Ellipsoids3D with_many_fill_mode(const Collection<rerun::components::FillMode>& _fill_mode
+        Ellipsoids3D with_many_fill_mode(
+            const Collection<rerun::components::FillMode>& _fill_mode
         ) && {
             fill_mode =
                 ComponentBatch::from_loggable(_fill_mode, Descriptor_fill_mode).value_or_throw();

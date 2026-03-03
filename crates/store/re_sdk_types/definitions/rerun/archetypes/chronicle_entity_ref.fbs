@@ -1,0 +1,24 @@
+namespace rerun.archetypes;
+
+// ---
+
+/// An entity reference associating a Chronicle event with a typed entity.
+///
+/// Entity refs are the many-to-many mapping between events and entities
+/// (e.g. linking an event to customer "cust_123" and ticket "tkt_456").
+/// Logged as a component on the event entity path.
+table ChronicleEntityRef (
+  "attr.docs.category": "Chronicle",
+  "attr.docs.view_types": "ChronicleTimelineView",
+  "attr.rerun.state": "stable",
+  "attr.rerun.visualizer": "ChronicleEntityRef",
+  "attr.rust.derive": "PartialEq"
+) {
+  // --- Required ---
+
+  /// The type of the referenced entity (e.g. "customer", "account", "ticket").
+  entity_type: rerun.components.ChronicleEntityType ("attr.rerun.component_required", order: 1000);
+
+  /// The ID of the referenced entity (e.g. "cust_123", "tkt_456").
+  entity_id: rerun.components.ChronicleEntityId ("attr.rerun.component_required", order: 1100);
+}

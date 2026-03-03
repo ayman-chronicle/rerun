@@ -1,0 +1,41 @@
+namespace rerun.archetypes;
+
+// ---
+
+/// A Chronicle SaaS event with source, type, and optional JSON payload.
+///
+/// Events are the core data type in Chronicle. Each event represents a
+/// single occurrence from a SaaS source (e.g. a Stripe payment, a support
+/// ticket, a product page view). Events are logged at entity paths that
+/// encode the entity hierarchy: `/{org}/{entity_type}/{entity_id}/{source}/{event_type}`.
+table ChronicleEvent (
+  "attr.docs.category": "Chronicle",
+  "attr.docs.view_types": "TextLogView, ChronicleTimelineView",
+  "attr.rerun.state": "stable",
+  "attr.rerun.visualizer": "ChronicleEvent",
+  "attr.rust.derive": "PartialEq"
+) {
+  // --- Required ---
+
+  /// The data source (e.g. "stripe", "support", "product", "marketing").
+  source: rerun.components.ChronicleSource ("attr.rerun.component_required", order: 1000);
+
+  /// The event type (e.g. "payment_intent.succeeded", "ticket.created").
+  event_type: rerun.components.ChronicleEventType ("attr.rerun.component_required", order: 1100);
+
+  // --- Recommended ---
+
+  /// The topic/category (e.g. "payments", "tickets", "usage").
+  topic: rerun.components.ChronicleTopic ("attr.rerun.component_recommended", nullable, order: 2000);
+
+  // --- Optional ---
+
+  /// JSON payload serialized as a string.
+  payload: rerun.components.ChroniclePayload ("attr.rerun.component_optional", nullable, order: 3000);
+
+  /// Optional color for the event marker.
+  color: rerun.components.Color ("attr.rerun.component_optional", nullable, order: 3100);
+
+  /// Optional text label.
+  label: rerun.components.Text ("attr.rerun.component_optional", nullable, order: 3200);
+}

@@ -1,0 +1,14 @@
+namespace rerun.components;
+
+// ---
+
+/// The data source of a Chronicle event (e.g. "stripe", "support", "product").
+table ChronicleSource (
+  "attr.python.aliases": "str",
+  "attr.python.array_aliases": "str | Sequence[str]",
+  "attr.rerun.state": "stable",
+  "attr.rust.derive": "Default, PartialEq, Eq, PartialOrd, Ord, Hash",
+  "attr.rust.repr": "transparent"
+) {
+  value: rerun.datatypes.Utf8 (order: 100);
+}

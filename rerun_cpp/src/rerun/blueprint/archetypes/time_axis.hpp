@@ -84,7 +84,8 @@ namespace rerun::blueprint::archetypes {
         }
 
         /// If enabled, the X axis range will remain locked to the specified range when zooming.
-        TimeAxis with_zoom_lock(const rerun::blueprint::components::LockRangeDuringZoom& _zoom_lock
+        TimeAxis with_zoom_lock(
+            const rerun::blueprint::components::LockRangeDuringZoom& _zoom_lock
         ) && {
             zoom_lock =
                 ComponentBatch::from_loggable(_zoom_lock, Descriptor_zoom_lock).value_or_throw();

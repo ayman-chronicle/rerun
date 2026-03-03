@@ -179,7 +179,8 @@ namespace rerun::archetypes {
         }
 
         /// 3x3 transformation matrices.
-        InstancePoses3D with_mat3x3(const Collection<rerun::components::TransformMat3x3>& _mat3x3
+        InstancePoses3D with_mat3x3(
+            const Collection<rerun::components::TransformMat3x3>& _mat3x3
         ) && {
             mat3x3 = ComponentBatch::from_loggable(_mat3x3, Descriptor_mat3x3).value_or_throw();
             return std::move(*this);

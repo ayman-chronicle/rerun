@@ -21,7 +21,8 @@ namespace rerun::blueprint::archetypes {
         return archetype;
     }
 
-    Collection<ComponentColumn> VisualizerInstruction::columns(const Collection<uint32_t>& lengths_
+    Collection<ComponentColumn> VisualizerInstruction::columns(
+        const Collection<uint32_t>& lengths_
     ) {
         std::vector<ComponentColumn> columns;
         columns.reserve(2);

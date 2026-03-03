@@ -11,6 +11,9 @@ from .bar_chart import BarChart
 from .boxes2d import Boxes2D
 from .boxes3d import Boxes3D
 from .capsules3d import Capsules3D
+from .chronicle_entity_ref import ChronicleEntityRef
+from .chronicle_event import ChronicleEvent
+from .chronicle_link import ChronicleLink
 from .clear import Clear
 from .coordinate_frame import CoordinateFrame
 from .cylinders3d import Cylinders3D
@@ -58,6 +61,9 @@ __all__ = [
     "Boxes2D",
     "Boxes3D",
     "Capsules3D",
+    "ChronicleEntityRef",
+    "ChronicleEvent",
+    "ChronicleLink",
     "Clear",
     "CoordinateFrame",
     "Cylinders3D",

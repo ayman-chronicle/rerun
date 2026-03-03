@@ -20,6 +20,17 @@ on [Entities and Components](../../concepts/logging-and-ingestion/entity-compone
 * [`Blob`](components/blob.md): A binary blob of data.
 * [`ChannelId`](components/channel_id.md): A 16-bit ID representing an MCAP channel.
 * [`ChannelMessageCounts`](components/channel_message_counts.md): A mapping of channel IDs to their respective message counts.
+* [`ChronicleConfidence`](components/chronicle_confidence.md): Confidence score (0.0 to 1.0) for a Chronicle event link.
+* [`ChronicleEntityId`](components/chronicle_entity_id.md): The ID of a Chronicle entity (e.g. "cust_123", "tkt_456", "sess_789").
+* [`ChronicleEntityType`](components/chronicle_entity_type.md): The type of a Chronicle entity reference (e.g. "customer", "account", "session", "ticket").
+* [`ChronicleEventType`](components/chronicle_event_type.md): The type of a Chronicle event (e.g. "payment_intent.succeeded", "ticket.created").
+* [`ChronicleLinkType`](components/chronicle_link_type.md): The type of a causal link between Chronicle events (e.g. "caused_by", "led_to", "triggered").
+* [`ChroniclePayload`](components/chronicle_payload.md): The JSON payload of a Chronicle event, serialized as a UTF-8 string.
+* [`ChronicleReasoning`](components/chronicle_reasoning.md): Human-readable reasoning for why a Chronicle link was created.
+* [`ChronicleSource`](components/chronicle_source.md): The data source of a Chronicle event (e.g. "stripe", "support", "product").
+* [`ChronicleSourceEvent`](components/chronicle_source_event.md): Entity path of the source event in a Chronicle link.
+* [`ChronicleTargetEvent`](components/chronicle_target_event.md): Entity path of the target event in a Chronicle link.
+* [`ChronicleTopic`](components/chronicle_topic.md): The topic of a Chronicle event (e.g. "payments", "tickets", "usage").
 * [`ClassId`](components/class_id.md): A 16-bit ID representing a type of semantic class.
 * [`ClearIsRecursive`](components/clear_is_recursive.md): Configures how a clear operation should behave - recursive or not.
 * [`Color`](components/color.md): An RGBA color with unmultiplied/separate alpha, in sRGB gamma space with linear alpha.

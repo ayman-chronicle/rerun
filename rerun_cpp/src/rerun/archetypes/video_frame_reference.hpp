@@ -173,8 +173,10 @@ namespace rerun::archetypes {
         VideoFrameReference& operator=(VideoFrameReference&& other) = default;
 
         explicit VideoFrameReference(rerun::components::VideoTimestamp _timestamp)
-            : timestamp(ComponentBatch::from_loggable(std::move(_timestamp), Descriptor_timestamp)
-                            .value_or_throw()) {}
+            : timestamp(
+                  ComponentBatch::from_loggable(std::move(_timestamp), Descriptor_timestamp)
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `VideoFrameReference`.
         static VideoFrameReference update_fields() {
@@ -253,7 +255,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_opacity` should
         /// be used when logging a single row's worth of data.
-        VideoFrameReference with_many_opacity(const Collection<rerun::components::Opacity>& _opacity
+        VideoFrameReference with_many_opacity(
+            const Collection<rerun::components::Opacity>& _opacity
         ) && {
             opacity = ComponentBatch::from_loggable(_opacity, Descriptor_opacity).value_or_throw();
             return std::move(*this);

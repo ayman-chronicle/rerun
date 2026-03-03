@@ -105,8 +105,10 @@ namespace rerun::archetypes {
         VideoStream& operator=(VideoStream&& other) = default;
 
         explicit VideoStream(rerun::components::VideoCodec _codec)
-            : codec(ComponentBatch::from_loggable(std::move(_codec), Descriptor_codec)
-                        .value_or_throw()) {}
+            : codec(
+                  ComponentBatch::from_loggable(std::move(_codec), Descriptor_codec)
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `VideoStream`.
         static VideoStream update_fields() {
@@ -201,7 +203,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_draw_order` should
         /// be used when logging a single row's worth of data.
-        VideoStream with_many_draw_order(const Collection<rerun::components::DrawOrder>& _draw_order
+        VideoStream with_many_draw_order(
+            const Collection<rerun::components::DrawOrder>& _draw_order
         ) && {
             draw_order =
                 ComponentBatch::from_loggable(_draw_order, Descriptor_draw_order).value_or_throw();

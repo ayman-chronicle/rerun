@@ -1,0 +1,14 @@
+namespace rerun.components;
+
+// ---
+
+/// The type of a causal link between Chronicle events (e.g. "caused_by", "led_to", "triggered").
+table ChronicleLinkType (
+  "attr.python.aliases": "str",
+  "attr.python.array_aliases": "str | Sequence[str]",
+  "attr.rerun.state": "stable",
+  "attr.rust.derive": "Default, PartialEq, Eq, PartialOrd, Ord, Hash",
+  "attr.rust.repr": "transparent"
+) {
+  value: rerun.datatypes.Utf8 (order: 100);
+}

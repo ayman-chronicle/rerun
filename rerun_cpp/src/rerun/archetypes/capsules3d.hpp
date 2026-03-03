@@ -264,7 +264,8 @@ namespace rerun::archetypes {
         /// Rotations via quaternion.
         ///
         /// If no rotation is specified, the capsules align with the +Z axis of the local coordinate system.
-        Capsules3D with_quaternions(const Collection<rerun::components::RotationQuat>& _quaternions
+        Capsules3D with_quaternions(
+            const Collection<rerun::components::RotationQuat>& _quaternions
         ) && {
             quaternions = ComponentBatch::from_loggable(_quaternions, Descriptor_quaternions)
                               .value_or_throw();
@@ -297,7 +298,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_fill_mode` should
         /// be used when logging a single row's worth of data.
-        Capsules3D with_many_fill_mode(const Collection<rerun::components::FillMode>& _fill_mode
+        Capsules3D with_many_fill_mode(
+            const Collection<rerun::components::FillMode>& _fill_mode
         ) && {
             fill_mode =
                 ComponentBatch::from_loggable(_fill_mode, Descriptor_fill_mode).value_or_throw();
@@ -369,7 +371,8 @@ namespace rerun {
     template <>
     struct AsComponents<archetypes::Capsules3D> {
         /// Serialize all set component batches.
-        static Result<Collection<ComponentBatch>> as_batches(const archetypes::Capsules3D& archetype
+        static Result<Collection<ComponentBatch>> as_batches(
+            const archetypes::Capsules3D& archetype
         );
     };
 } // namespace rerun

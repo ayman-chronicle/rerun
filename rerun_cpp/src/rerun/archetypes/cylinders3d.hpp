@@ -243,7 +243,8 @@ namespace rerun::archetypes {
         /// Rotations via quaternion.
         ///
         /// If no rotation is specified, the cylinders align with the +Z axis of the local coordinate system.
-        Cylinders3D with_quaternions(const Collection<rerun::components::RotationQuat>& _quaternions
+        Cylinders3D with_quaternions(
+            const Collection<rerun::components::RotationQuat>& _quaternions
         ) && {
             quaternions = ComponentBatch::from_loggable(_quaternions, Descriptor_quaternions)
                               .value_or_throw();
@@ -276,7 +277,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_fill_mode` should
         /// be used when logging a single row's worth of data.
-        Cylinders3D with_many_fill_mode(const Collection<rerun::components::FillMode>& _fill_mode
+        Cylinders3D with_many_fill_mode(
+            const Collection<rerun::components::FillMode>& _fill_mode
         ) && {
             fill_mode =
                 ComponentBatch::from_loggable(_fill_mode, Descriptor_fill_mode).value_or_throw();

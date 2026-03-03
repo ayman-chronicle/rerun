@@ -29,10 +29,10 @@ namespace rerun::blueprint::archetypes {
         archetype.select =
             ComponentBatch::empty<rerun::blueprint::components::SelectedColumns>(Descriptor_select)
                 .value_or_throw();
-        archetype.entity_order =
-            ComponentBatch::empty<rerun::blueprint::components::ColumnOrder>(Descriptor_entity_order
-            )
-                .value_or_throw();
+        archetype.entity_order = ComponentBatch::empty<rerun::blueprint::components::ColumnOrder>(
+                                     Descriptor_entity_order
+        )
+                                     .value_or_throw();
         archetype.auto_scroll =
             ComponentBatch::empty<rerun::blueprint::components::AutoScroll>(Descriptor_auto_scroll)
                 .value_or_throw();

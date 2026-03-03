@@ -20,6 +20,7 @@ float32
 ## Used by
 
 * [`AxisLength`](../components/axis_length.md)
+* [`ChronicleConfidence`](../components/chronicle_confidence.md)
 * [`DepthMeter`](../components/depth_meter.md)
 * [`DrawOrder`](../components/draw_order.md)
 * [`FillRatio`](../components/fill_ratio.md)

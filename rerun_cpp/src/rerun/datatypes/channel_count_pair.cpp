@@ -12,8 +12,8 @@
 namespace rerun::datatypes {}
 
 namespace rerun {
-    const std::shared_ptr<arrow::DataType>& Loggable<datatypes::ChannelCountPair>::arrow_datatype(
-    ) {
+    const std::shared_ptr<arrow::DataType>&
+        Loggable<datatypes::ChannelCountPair>::arrow_datatype() {
         static const auto datatype = arrow::struct_({
             arrow::field("channel_id", Loggable<rerun::datatypes::UInt16>::arrow_datatype(), false),
             arrow::field(
@@ -34,11 +34,13 @@ namespace rerun {
 
         ARROW_ASSIGN_OR_RAISE(auto builder, arrow::MakeBuilder(datatype, pool))
         if (instances && num_instances > 0) {
-            RR_RETURN_NOT_OK(Loggable<datatypes::ChannelCountPair>::fill_arrow_array_builder(
-                static_cast<arrow::StructBuilder*>(builder.get()),
-                instances,
-                num_instances
-            ));
+            RR_RETURN_NOT_OK(
+                Loggable<datatypes::ChannelCountPair>::fill_arrow_array_builder(
+                    static_cast<arrow::StructBuilder*>(builder.get()),
+                    instances,
+                    num_instances
+                )
+            );
         }
         std::shared_ptr<arrow::Array> array;
         ARROW_RETURN_NOT_OK(builder->Finish(&array));
@@ -63,22 +65,26 @@ namespace rerun {
             auto field_builder = static_cast<arrow::UInt16Builder*>(builder->field_builder(0));
             ARROW_RETURN_NOT_OK(field_builder->Reserve(static_cast<int64_t>(num_elements)));
             for (size_t elem_idx = 0; elem_idx < num_elements; elem_idx += 1) {
-                RR_RETURN_NOT_OK(Loggable<rerun::datatypes::UInt16>::fill_arrow_array_builder(
-                    field_builder,
-                    &elements[elem_idx].channel_id,
-                    1
-                ));
+                RR_RETURN_NOT_OK(
+                    Loggable<rerun::datatypes::UInt16>::fill_arrow_array_builder(
+                        field_builder,
+                        &elements[elem_idx].channel_id,
+                        1
+                    )
+                );
             }
         }
         {
             auto field_builder = static_cast<arrow::UInt64Builder*>(builder->field_builder(1));
             ARROW_RETURN_NOT_OK(field_builder->Reserve(static_cast<int64_t>(num_elements)));
             for (size_t elem_idx = 0; elem_idx < num_elements; elem_idx += 1) {
-                RR_RETURN_NOT_OK(Loggable<rerun::datatypes::UInt64>::fill_arrow_array_builder(
-                    field_builder,
-                    &elements[elem_idx].message_count,
-                    1
-                ));
+                RR_RETURN_NOT_OK(
+                    Loggable<rerun::datatypes::UInt64>::fill_arrow_array_builder(
+                        field_builder,
+                        &elements[elem_idx].message_count,
+                        1
+                    )
+                );
             }
         }
         ARROW_RETURN_NOT_OK(builder->AppendValues(static_cast<int64_t>(num_elements), nullptr));

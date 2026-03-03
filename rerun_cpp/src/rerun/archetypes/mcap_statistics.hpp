@@ -152,26 +152,34 @@ namespace rerun::archetypes {
                   ComponentBatch::from_loggable(std::move(_channel_count), Descriptor_channel_count)
                       .value_or_throw()
               ),
-              attachment_count(ComponentBatch::from_loggable(
-                                   std::move(_attachment_count), Descriptor_attachment_count
-              )
-                                   .value_or_throw()),
-              metadata_count(ComponentBatch::from_loggable(
-                                 std::move(_metadata_count), Descriptor_metadata_count
-              )
-                                 .value_or_throw()),
+              attachment_count(
+                  ComponentBatch::from_loggable(
+                      std::move(_attachment_count), Descriptor_attachment_count
+                  )
+                      .value_or_throw()
+              ),
+              metadata_count(
+                  ComponentBatch::from_loggable(
+                      std::move(_metadata_count), Descriptor_metadata_count
+                  )
+                      .value_or_throw()
+              ),
               chunk_count(
                   ComponentBatch::from_loggable(std::move(_chunk_count), Descriptor_chunk_count)
                       .value_or_throw()
               ),
-              message_start_time(ComponentBatch::from_loggable(
-                                     std::move(_message_start_time), Descriptor_message_start_time
-              )
-                                     .value_or_throw()),
-              message_end_time(ComponentBatch::from_loggable(
-                                   std::move(_message_end_time), Descriptor_message_end_time
-              )
-                                   .value_or_throw()) {}
+              message_start_time(
+                  ComponentBatch::from_loggable(
+                      std::move(_message_start_time), Descriptor_message_start_time
+                  )
+                      .value_or_throw()
+              ),
+              message_end_time(
+                  ComponentBatch::from_loggable(
+                      std::move(_message_end_time), Descriptor_message_end_time
+                  )
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `McapStatistics`.
         static McapStatistics update_fields() {
@@ -341,7 +349,8 @@ namespace rerun::archetypes {
         /// Timestamp of the latest message in the recording.
         ///
         /// Together with `message_start_time`, this defines the total duration of the recording.
-        McapStatistics with_message_end_time(const rerun::components::Timestamp& _message_end_time
+        McapStatistics with_message_end_time(
+            const rerun::components::Timestamp& _message_end_time
         ) && {
             message_end_time =
                 ComponentBatch::from_loggable(_message_end_time, Descriptor_message_end_time)

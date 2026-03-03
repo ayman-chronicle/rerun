@@ -1,0 +1,40 @@
+namespace rerun.archetypes;
+
+// ---
+
+/// A causal or relational link between two Chronicle events.
+///
+/// Links represent directed edges in the event graph (e.g. "payment failure
+/// caused support ticket"). They are rendered as Bezier arcs in the
+/// ChronicleTimelineView.
+table ChronicleLink (
+  "attr.docs.category": "Chronicle",
+  "attr.docs.view_types": "ChronicleTimelineView",
+  "attr.rerun.state": "stable",
+  "attr.rerun.visualizer": "ChronicleLink",
+  "attr.rust.derive": "PartialEq"
+) {
+  // --- Required ---
+
+  /// Entity path of the source event.
+  source_event: rerun.components.ChronicleSourceEvent ("attr.rerun.component_required", order: 1000);
+
+  /// Entity path of the target event.
+  target_event: rerun.components.ChronicleTargetEvent ("attr.rerun.component_required", order: 1100);
+
+  /// Type of the link (e.g. "caused_by", "led_to", "triggered", "related_to").
+  link_type: rerun.components.ChronicleLinkType ("attr.rerun.component_required", order: 1200);
+
+  // --- Recommended ---
+
+  /// Confidence score (0.0 to 1.0). Controls arc opacity in the viewer.
+  confidence: rerun.components.ChronicleConfidence ("attr.rerun.component_recommended", nullable, order: 2000);
+
+  // --- Optional ---
+
+  /// Human-readable reasoning for why this link exists.
+  reasoning: rerun.components.ChronicleReasoning ("attr.rerun.component_optional", nullable, order: 3000);
+
+  /// Optional color override for the link arc.
+  color: rerun.components.Color ("attr.rerun.component_optional", nullable, order: 3100);
+}

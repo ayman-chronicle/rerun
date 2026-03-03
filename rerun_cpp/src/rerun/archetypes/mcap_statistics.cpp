@@ -68,7 +68,8 @@ namespace rerun::archetypes {
             columns.push_back(message_end_time.value().partitioned(lengths_).value_or_throw());
         }
         if (channel_message_counts.has_value()) {
-            columns.push_back(channel_message_counts.value().partitioned(lengths_).value_or_throw()
+            columns.push_back(
+                channel_message_counts.value().partitioned(lengths_).value_or_throw()
             );
         }
         return columns;

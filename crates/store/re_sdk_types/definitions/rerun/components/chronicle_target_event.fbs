@@ -1,0 +1,14 @@
+namespace rerun.components;
+
+// ---
+
+/// Entity path of the target event in a Chronicle link.
+table ChronicleTargetEvent (
+  "attr.python.aliases": "str",
+  "attr.python.array_aliases": "str | Sequence[str]",
+  "attr.rerun.state": "stable",
+  "attr.rust.derive": "Default, PartialEq, Eq, PartialOrd, Ord, Hash",
+  "attr.rust.repr": "transparent"
+) {
+  value: rerun.datatypes.Utf8 (order: 100);
+}

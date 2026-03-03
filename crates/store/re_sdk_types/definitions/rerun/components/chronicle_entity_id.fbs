@@ -1,0 +1,14 @@
+namespace rerun.components;
+
+// ---
+
+/// The ID of a Chronicle entity (e.g. "cust_123", "tkt_456", "sess_789").
+table ChronicleEntityId (
+  "attr.python.aliases": "str",
+  "attr.python.array_aliases": "str | Sequence[str]",
+  "attr.rerun.state": "stable",
+  "attr.rust.derive": "Default, PartialEq, Eq, PartialOrd, Ord, Hash",
+  "attr.rust.repr": "transparent"
+) {
+  value: rerun.datatypes.Utf8 (order: 100);
+}

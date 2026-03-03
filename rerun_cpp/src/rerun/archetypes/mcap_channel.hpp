@@ -93,12 +93,16 @@ namespace rerun::archetypes {
             rerun::components::Text _message_encoding
         )
             : id(ComponentBatch::from_loggable(std::move(_id), Descriptor_id).value_or_throw()),
-              topic(ComponentBatch::from_loggable(std::move(_topic), Descriptor_topic)
-                        .value_or_throw()),
-              message_encoding(ComponentBatch::from_loggable(
-                                   std::move(_message_encoding), Descriptor_message_encoding
-              )
-                                   .value_or_throw()) {}
+              topic(
+                  ComponentBatch::from_loggable(std::move(_topic), Descriptor_topic)
+                      .value_or_throw()
+              ),
+              message_encoding(
+                  ComponentBatch::from_loggable(
+                      std::move(_message_encoding), Descriptor_message_encoding
+                  )
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `McapChannel`.
         static McapChannel update_fields() {
@@ -186,7 +190,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_metadata` should
         /// be used when logging a single row's worth of data.
-        McapChannel with_many_metadata(const Collection<rerun::components::KeyValuePairs>& _metadata
+        McapChannel with_many_metadata(
+            const Collection<rerun::components::KeyValuePairs>& _metadata
         ) && {
             metadata =
                 ComponentBatch::from_loggable(_metadata, Descriptor_metadata).value_or_throw();

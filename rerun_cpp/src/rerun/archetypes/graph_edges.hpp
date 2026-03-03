@@ -74,8 +74,10 @@ namespace rerun::archetypes {
         GraphEdges& operator=(GraphEdges&& other) = default;
 
         explicit GraphEdges(Collection<rerun::components::GraphEdge> _edges)
-            : edges(ComponentBatch::from_loggable(std::move(_edges), Descriptor_edges)
-                        .value_or_throw()) {}
+            : edges(
+                  ComponentBatch::from_loggable(std::move(_edges), Descriptor_edges)
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `GraphEdges`.
         static GraphEdges update_fields() {
@@ -104,7 +106,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_graph_type` should
         /// be used when logging a single row's worth of data.
-        GraphEdges with_many_graph_type(const Collection<rerun::components::GraphType>& _graph_type
+        GraphEdges with_many_graph_type(
+            const Collection<rerun::components::GraphType>& _graph_type
         ) && {
             graph_type =
                 ComponentBatch::from_loggable(_graph_type, Descriptor_graph_type).value_or_throw();
@@ -139,7 +142,8 @@ namespace rerun {
     template <>
     struct AsComponents<archetypes::GraphEdges> {
         /// Serialize all set component batches.
-        static Result<Collection<ComponentBatch>> as_batches(const archetypes::GraphEdges& archetype
+        static Result<Collection<ComponentBatch>> as_batches(
+            const archetypes::GraphEdges& archetype
         );
     };
 } // namespace rerun

@@ -38,5 +38,6 @@ snippet: views/text_log
 
 ## Visualized archetypes
 
+* [`ChronicleEvent`](../archetypes/chronicle_event.md)
 * [`TextLog`](../archetypes/text_log.md)
 

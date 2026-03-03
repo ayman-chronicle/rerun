@@ -24,6 +24,17 @@ from .channel_message_counts import (
     ChannelMessageCountsBatch,
     ChannelMessageCountsLike,
 )
+from .chronicle_confidence import ChronicleConfidence, ChronicleConfidenceBatch
+from .chronicle_entity_id import ChronicleEntityId, ChronicleEntityIdBatch
+from .chronicle_entity_type import ChronicleEntityType, ChronicleEntityTypeBatch
+from .chronicle_event_type import ChronicleEventType, ChronicleEventTypeBatch
+from .chronicle_link_type import ChronicleLinkType, ChronicleLinkTypeBatch
+from .chronicle_payload import ChroniclePayload, ChroniclePayloadBatch
+from .chronicle_reasoning import ChronicleReasoning, ChronicleReasoningBatch
+from .chronicle_source import ChronicleSource, ChronicleSourceBatch
+from .chronicle_source_event import ChronicleSourceEvent, ChronicleSourceEventBatch
+from .chronicle_target_event import ChronicleTargetEvent, ChronicleTargetEventBatch
+from .chronicle_topic import ChronicleTopic, ChronicleTopicBatch
 from .class_id import ClassId, ClassIdBatch
 from .clear_is_recursive import ClearIsRecursive, ClearIsRecursiveBatch
 from .color import Color, ColorBatch
@@ -131,6 +142,28 @@ __all__ = [
     "ChannelMessageCountsArrayLike",
     "ChannelMessageCountsBatch",
     "ChannelMessageCountsLike",
+    "ChronicleConfidence",
+    "ChronicleConfidenceBatch",
+    "ChronicleEntityId",
+    "ChronicleEntityIdBatch",
+    "ChronicleEntityType",
+    "ChronicleEntityTypeBatch",
+    "ChronicleEventType",
+    "ChronicleEventTypeBatch",
+    "ChronicleLinkType",
+    "ChronicleLinkTypeBatch",
+    "ChroniclePayload",
+    "ChroniclePayloadBatch",
+    "ChronicleReasoning",
+    "ChronicleReasoningBatch",
+    "ChronicleSource",
+    "ChronicleSourceBatch",
+    "ChronicleSourceEvent",
+    "ChronicleSourceEventBatch",
+    "ChronicleTargetEvent",
+    "ChronicleTargetEventBatch",
+    "ChronicleTopic",
+    "ChronicleTopicBatch",
     "ClassId",
     "ClassIdBatch",
     "ClearIsRecursive",

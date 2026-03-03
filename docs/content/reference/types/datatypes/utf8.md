@@ -20,6 +20,16 @@ utf8
 ## Used by
 
 * [`AnnotationInfo`](../datatypes/annotation_info.md)
+* [`ChronicleEntityId`](../components/chronicle_entity_id.md)
+* [`ChronicleEntityType`](../components/chronicle_entity_type.md)
+* [`ChronicleEventType`](../components/chronicle_event_type.md)
+* [`ChronicleLinkType`](../components/chronicle_link_type.md)
+* [`ChroniclePayload`](../components/chronicle_payload.md)
+* [`ChronicleReasoning`](../components/chronicle_reasoning.md)
+* [`ChronicleSourceEvent`](../components/chronicle_source_event.md)
+* [`ChronicleSource`](../components/chronicle_source.md)
+* [`ChronicleTargetEvent`](../components/chronicle_target_event.md)
+* [`ChronicleTopic`](../components/chronicle_topic.md)
 * [`GraphNode`](../components/graph_node.md)
 * [`MediaType`](../components/media_type.md)
 * [`Name`](../components/name.md)

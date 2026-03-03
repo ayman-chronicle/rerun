@@ -94,11 +94,15 @@ namespace rerun::archetypes {
             rerun::components::Text _encoding, rerun::components::Blob _data
         )
             : id(ComponentBatch::from_loggable(std::move(_id), Descriptor_id).value_or_throw()),
-              name(ComponentBatch::from_loggable(std::move(_name), Descriptor_name).value_or_throw()
+              name(
+                  ComponentBatch::from_loggable(std::move(_name), Descriptor_name).value_or_throw()
               ),
-              encoding(ComponentBatch::from_loggable(std::move(_encoding), Descriptor_encoding)
-                           .value_or_throw()),
-              data(ComponentBatch::from_loggable(std::move(_data), Descriptor_data).value_or_throw()
+              encoding(
+                  ComponentBatch::from_loggable(std::move(_encoding), Descriptor_encoding)
+                      .value_or_throw()
+              ),
+              data(
+                  ComponentBatch::from_loggable(std::move(_data), Descriptor_data).value_or_throw()
               ) {}
 
         /// Update only some specific fields of a `McapSchema`.
@@ -217,7 +221,8 @@ namespace rerun {
     template <>
     struct AsComponents<archetypes::McapSchema> {
         /// Serialize all set component batches.
-        static Result<Collection<ComponentBatch>> as_batches(const archetypes::McapSchema& archetype
+        static Result<Collection<ComponentBatch>> as_batches(
+            const archetypes::McapSchema& archetype
         );
     };
 } // namespace rerun

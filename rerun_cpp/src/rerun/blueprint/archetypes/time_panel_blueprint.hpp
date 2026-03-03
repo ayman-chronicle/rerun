@@ -114,7 +114,8 @@ namespace rerun::blueprint::archetypes {
         }
 
         /// What timeline the panel is on.
-        TimePanelBlueprint with_timeline(const rerun::blueprint::components::TimelineName& _timeline
+        TimePanelBlueprint with_timeline(
+            const rerun::blueprint::components::TimelineName& _timeline
         ) && {
             timeline =
                 ComponentBatch::from_loggable(_timeline, Descriptor_timeline).value_or_throw();
@@ -151,7 +152,8 @@ namespace rerun::blueprint::archetypes {
         /// How the time should loop. A selection loop only works if there is also a `time_selection` passed.
         ///
         /// Defaults to off.
-        TimePanelBlueprint with_loop_mode(const rerun::blueprint::components::LoopMode& _loop_mode
+        TimePanelBlueprint with_loop_mode(
+            const rerun::blueprint::components::LoopMode& _loop_mode
         ) && {
             loop_mode =
                 ComponentBatch::from_loggable(_loop_mode, Descriptor_loop_mode).value_or_throw();

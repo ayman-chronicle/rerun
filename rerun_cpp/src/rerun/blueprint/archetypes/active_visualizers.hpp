@@ -51,10 +51,12 @@ namespace rerun::blueprint::archetypes {
         explicit ActiveVisualizers(
             Collection<rerun::blueprint::components::VisualizerInstructionId> _instruction_ids
         )
-            : instruction_ids(ComponentBatch::from_loggable(
-                                  std::move(_instruction_ids), Descriptor_instruction_ids
-              )
-                                  .value_or_throw()) {}
+            : instruction_ids(
+                  ComponentBatch::from_loggable(
+                      std::move(_instruction_ids), Descriptor_instruction_ids
+                  )
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `ActiveVisualizers`.
         static ActiveVisualizers update_fields() {

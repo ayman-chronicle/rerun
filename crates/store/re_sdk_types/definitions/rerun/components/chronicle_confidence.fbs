@@ -1,0 +1,16 @@
+namespace rerun.components;
+
+// ---
+
+/// Confidence score (0.0 to 1.0) for a Chronicle event link.
+///
+/// Controls visual opacity of link arcs in the ChronicleTimelineView.
+table ChronicleConfidence (
+  "attr.python.aliases": "float",
+  "attr.python.array_aliases": "float | Sequence[float]",
+  "attr.rerun.state": "stable",
+  "attr.rust.derive": "Default, PartialEq, PartialOrd",
+  "attr.rust.repr": "transparent"
+) {
+  value: rerun.datatypes.Float32 (order: 100);
+}

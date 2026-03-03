@@ -86,7 +86,8 @@ namespace rerun::blueprint::archetypes {
         }
 
         /// Whether axes should be shown at the origin.
-        SpatialInformation with_show_axes(const rerun::blueprint::components::Enabled& _show_axes
+        SpatialInformation with_show_axes(
+            const rerun::blueprint::components::Enabled& _show_axes
         ) && {
             show_axes =
                 ComponentBatch::from_loggable(_show_axes, Descriptor_show_axes).value_or_throw();

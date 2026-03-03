@@ -160,7 +160,8 @@ namespace rerun::archetypes {
         EncodedDepthImage& operator=(EncodedDepthImage&& other) = default;
 
         explicit EncodedDepthImage(rerun::components::Blob _blob)
-            : blob(ComponentBatch::from_loggable(std::move(_blob), Descriptor_blob).value_or_throw()
+            : blob(
+                  ComponentBatch::from_loggable(std::move(_blob), Descriptor_blob).value_or_throw()
               ) {}
 
         /// Update only some specific fields of a `EncodedDepthImage`.
@@ -224,7 +225,8 @@ namespace rerun::archetypes {
         ///
         /// This only makes sense when used in conjunction with `columns`. `with_meter` should
         /// be used when logging a single row's worth of data.
-        EncodedDepthImage with_many_meter(const Collection<rerun::components::DepthMeter>& _meter
+        EncodedDepthImage with_many_meter(
+            const Collection<rerun::components::DepthMeter>& _meter
         ) && {
             meter = ComponentBatch::from_loggable(_meter, Descriptor_meter).value_or_throw();
             return std::move(*this);

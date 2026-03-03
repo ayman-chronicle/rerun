@@ -81,8 +81,10 @@ namespace rerun::archetypes {
         CoordinateFrame& operator=(CoordinateFrame&& other) = default;
 
         explicit CoordinateFrame(rerun::components::TransformFrameId _frame)
-            : frame(ComponentBatch::from_loggable(std::move(_frame), Descriptor_frame)
-                        .value_or_throw()) {}
+            : frame(
+                  ComponentBatch::from_loggable(std::move(_frame), Descriptor_frame)
+                      .value_or_throw()
+              ) {}
 
         /// Update only some specific fields of a `CoordinateFrame`.
         static CoordinateFrame update_fields() {
