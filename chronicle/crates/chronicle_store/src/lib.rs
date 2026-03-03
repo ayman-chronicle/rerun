@@ -33,6 +33,8 @@
 pub mod engine;
 #[cfg(feature = "hybrid")]
 pub mod hybrid;
+#[cfg(feature = "kurrent")]
+pub mod kurrent;
 pub mod memory;
 #[cfg(feature = "postgres")]
 pub mod postgres;

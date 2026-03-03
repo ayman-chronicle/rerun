@@ -12,6 +12,7 @@ workspace = true
 default = []
 postgres = ["dep:sqlx"]
 hybrid = ["dep:datafusion", "dep:object_store", "postgres"]
+kurrent = ["dep:kurrentdb", "postgres"]
 
 [dependencies]
 chronicle_core = { path = "../chronicle_core" }
@@ -19,6 +20,7 @@ chronicle_core = { path = "../chronicle_core" }
 async-trait = "0.1"
 chrono.workspace = true
 datafusion = { workspace = true, optional = true }
+kurrentdb = { workspace = true, optional = true }
 object_store = { workspace = true, optional = true }
 parking_lot.workspace = true
 serde.workspace = true
