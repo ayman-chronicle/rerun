@@ -10,13 +10,15 @@ workspace = true
 
 [features]
 default = []
+arrow-export = ["dep:arrow"]
 postgres = ["dep:sqlx"]
-hybrid = ["dep:datafusion", "dep:object_store", "postgres"]
+hybrid = ["dep:datafusion", "dep:object_store", "postgres", "arrow-export"]
 kurrent = ["dep:kurrentdb", "postgres"]
 
 [dependencies]
 chronicle_core = { path = "../chronicle_core" }
 
+arrow = { workspace = true, optional = true }
 async-trait = "0.1"
 chrono.workspace = true
 datafusion = { workspace = true, optional = true }

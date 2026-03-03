@@ -228,6 +228,91 @@ impl Chronicle {
         Ok(id.to_string())
     }
 
+    /// Query events and return as Arrow IPC bytes.
+    ///
+    /// In Python, convert to a PyArrow Table:
+    /// ```python
+    /// import pyarrow as pa
+    /// table = pa.ipc.open_stream(ch.query_df(source="stripe")).read_all()
+    /// df = table.to_pandas()  # or table.to_pyarrow(), polars.from_arrow(table)
+    /// ```
+    ///
+    /// The schema matches `event_arrow_schema()` -- the single source of
+    /// truth for Chronicle Arrow data.
+    #[pyo3(signature = (*, source=None, event_type=None, entity_type=None, entity_id=None, limit=1000))]
+    fn query_df(
+        &self,
+        py: Python<'_>,
+        source: Option<&str>,
+        event_type: Option<&str>,
+        entity_type: Option<&str>,
+        entity_id: Option<&str>,
+        limit: usize,
+    ) -> PyResult<PyObject> {
+        let entity = match (entity_type, entity_id) {
+            (Some(t), Some(id)) => Some((EntityType::new(t), EntityId::new(id))),
+            _ => None,
+        };
+
+        let q = StructuredQuery {
+            org_id: OrgId::new(&self.org_id),
+            source: source.map(Source::new),
+            topic: None,
+            event_type: event_type.map(EventType::new),
+            entity,
+            time_range: None,
+            payload_filters: vec![],
+            group_by: None,
+            order_by: OrderBy::EventTimeDesc,
+            limit,
+            offset: 0,
+        };
+
+        let results = self.runtime.block_on(self.query.query(&q))
+            .map_err(|e| PyValueError::new_err(format!("Query failed: {e}")))?;
+
+        let events: Vec<chronicle_core::event::Event> =
+            results.into_iter().map(|r| r.event).collect();
+
+        let ipc_bytes = events_to_ipc_bytes(&events)?;
+        Ok(pyo3::types::PyBytes::new(py, &ipc_bytes).into())
+    }
+
+    /// Get entity timeline as Arrow IPC bytes.
+    ///
+    /// ```python
+    /// table = pa.ipc.open_stream(ch.timeline_df("customer", "cust_123")).read_all()
+    /// ```
+    #[pyo3(signature = (entity_type, entity_id, *, include_linked=true))]
+    fn timeline_df(
+        &self,
+        py: Python<'_>,
+        entity_type: &str,
+        entity_id: &str,
+        include_linked: bool,
+    ) -> PyResult<PyObject> {
+        let q = TimelineQuery {
+            org_id: OrgId::new(&self.org_id),
+            entity_type: EntityType::new(entity_type),
+            entity_id: EntityId::new(entity_id),
+            time_range: None,
+            sources: None,
+            include_linked,
+            include_entity_refs: true,
+            link_depth: 1,
+            min_link_confidence: 0.7,
+        };
+
+        let results = self.runtime.block_on(self.query.timeline(&q))
+            .map_err(|e| PyValueError::new_err(format!("Timeline failed: {e}")))?;
+
+        let events: Vec<chronicle_core::event::Event> =
+            results.into_iter().map(|r| r.event).collect();
+
+        let ipc_bytes = events_to_ipc_bytes(&events)?;
+        Ok(pyo3::types::PyBytes::new(py, &ipc_bytes).into())
+    }
+
     /// List entity types. Returns JSON string.
     fn describe_entity_types(&self) -> PyResult<String> {
         let types = self.runtime.block_on(
@@ -330,6 +415,29 @@ impl Chronicle {
         serde_json::to_string(&tools)
             .map_err(|e| PyValueError::new_err(format!("{e}")))
     }
+}
+
+/// Serialize events to Arrow IPC stream bytes.
+///
+/// Python deserializes with `pyarrow.ipc.open_stream(bytes).read_all()`.
+/// Uses the shared `events_to_record_batch` from `arrow_export` (DRY).
+fn events_to_ipc_bytes(events: &[chronicle_core::event::Event]) -> PyResult<Vec<u8>> {
+    let batch = chronicle_store::arrow_export::events_to_record_batch(events)
+        .map_err(|e| PyValueError::new_err(format!("Arrow conversion: {e}")))?;
+
+    let mut buf = Vec::new();
+    {
+        let mut writer =
+            arrow::ipc::writer::StreamWriter::try_new(&mut buf, &batch.schema())
+                .map_err(|e| PyValueError::new_err(format!("IPC writer: {e}")))?;
+        writer
+            .write(&batch)
+            .map_err(|e| PyValueError::new_err(format!("IPC write: {e}")))?;
+        writer
+            .finish()
+            .map_err(|e| PyValueError::new_err(format!("IPC finish: {e}")))?;
+    }
+    Ok(buf)
 }
 
 fn py_dict_to_json(dict: &Bound<'_, PyDict>) -> PyResult<String> {

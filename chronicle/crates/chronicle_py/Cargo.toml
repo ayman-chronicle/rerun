@@ -14,13 +14,14 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chronicle_core = { path = "../chronicle_core" }
-chronicle_store = { path = "../chronicle_store" }
+chronicle_store = { path = "../chronicle_store", features = ["arrow-export"] }
 chronicle_query = { path = "../chronicle_query" }
 chronicle_link = { path = "../chronicle_link" }
 chronicle_ingest = { path = "../chronicle_ingest" }
 chronicle_embed = { path = "../chronicle_embed" }
 chronicle_server = { path = "../chronicle_server" }
 
+arrow = { workspace = true, features = ["ipc"] }
 chrono.workspace = true
 pyo3 = { version = "0.23", features = ["extension-module"] }
 serde.workspace = true

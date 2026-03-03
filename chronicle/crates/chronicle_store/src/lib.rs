@@ -30,6 +30,8 @@
 //! PostgresBackend / HybridBackend / KurrentBackend  <-- impls
 //! ```
 
+#[cfg(feature = "arrow-export")]
+pub mod arrow_export;
 pub mod engine;
 #[cfg(feature = "hybrid")]
 pub mod hybrid;
