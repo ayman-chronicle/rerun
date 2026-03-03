@@ -1,6 +1,6 @@
 //! Bridge between Chronicle and Rerun viewer.
 //!
-//! Maps Chronicle events to Rerun archetypes (`TextLog`, `Scalar`) and
+//! Maps Chronicle events to Rerun archetypes (`ChronicleEvent`, `Scalar`) and
 //! logs them to a `RecordingStream` for visualization in the Rerun viewer.
 //!
 //! # Usage
@@ -50,9 +50,9 @@ impl ChronicleBridge {
         Self { engine, rec }
     }
 
-    /// Load an entity's timeline into the Rerun viewer as `TextLog` entries.
+    /// Load an entity's timeline into the Rerun viewer as `ChronicleEvent` entries.
     ///
-    /// Each event becomes a `TextLog` at entity path `/{source}/{event_type}`,
+    /// Each event becomes a `ChronicleEvent` at entity path `/{source}/{event_type}`,
     /// timestamped on the `event_time` timeline.
     pub async fn load_timeline(&self, query: &TimelineQuery) -> Result<usize, StoreError> {
         let results = self.engine.events.query_timeline(query).await?;
@@ -75,7 +75,7 @@ impl ChronicleBridge {
         let events: Vec<Event> = results.iter().map(|r| r.event.clone()).collect();
         let _batch = chronicle_store::arrow_export::events_to_record_batch(&events)?;
         // RecordBatch is ready for send_dataframe when the Rerun API supports it.
-        // For now, log as TextLog + Scalar which works with the current viewer.
+        // For now, log as ChronicleEvent which works with the current viewer.
         self.log_events(&results)?;
         Ok(results.len())
     }
@@ -116,9 +116,6 @@ impl ChronicleBridge {
         Ok(logged)
     }
 
-    /// Log a slice of `EventResults` as `TextLog` + `ChronicleEvent` entries
-    /// in the viewer, plus full JSON payloads as `TextDocument` on a child
-    /// entity path.
     fn log_events(&self, results: &[EventResult]) -> Result<(), StoreError> {
         for r in results {
             let path = format!(
@@ -130,30 +127,25 @@ impl ChronicleBridge {
             self.rec
                 .set_timestamp_secs_since_epoch("event_time", r.event.event_time.timestamp() as f64);
 
-            // Native ChronicleEvent archetype (for the time panel)
             let mut chronicle_event = rerun::archetypes::ChronicleEvent::new(
                 r.event.source.as_str(),
                 r.event.event_type.as_str(),
-            )
-            .with_topic(r.event.topic.as_str());
+            );
+
+            chronicle_event = chronicle_event.with_topic(r.event.topic.as_str());
+
             if let Some(ref payload) = r.event.payload {
-                let json = serde_json::to_string(payload).unwrap_or_default();
-                chronicle_event = chronicle_event.with_payload(json);
-            }
-            if let Err(e) = self.rec.log(path.as_str(), &chronicle_event) {
-                tracing::warn!("Failed to log ChronicleEvent: {e}");
+                let json_str = serde_json::to_string(payload).unwrap_or_default();
+                chronicle_event = chronicle_event.with_payload(json_str.as_str());
             }
 
-            // TextLog (for the text log view)
             let summary = format_event_summary(&r.event);
-            if let Err(e) = self.rec.log(
-                path.as_str(),
-                &rerun::archetypes::TextLog::new(summary).with_level(r.event.source.as_str()),
-            ) {
+            chronicle_event = chronicle_event.with_label(summary);
+
+            if let Err(e) = self.rec.log(path.as_str(), &chronicle_event) {
                 tracing::warn!("Failed to log event: {e}");
             }
 
-            // TextDocument payload (for the selection panel)
             if let Some(ref payload) = r.event.payload {
                 let json = serde_json::to_string_pretty(payload).unwrap_or_default();
                 let detail_path = format!("{path}/payload");
@@ -171,7 +163,7 @@ impl ChronicleBridge {
 
     /// Log events and their links together into the Rerun viewer.
     ///
-    /// Events are logged as `ChronicleEvent` + `TextLog` at `{source}/{event_type}`.
+    /// Events are logged as `ChronicleEvent` at `{source}/{event_type}`.
     /// Links are logged as `ChronicleLink` at
     /// `_links/{src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}`,
     /// encoding the source/target entity paths in the link entity path so the
