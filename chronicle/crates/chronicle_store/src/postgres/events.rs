@@ -1,7 +1,9 @@
 //! `EventStore` implementation for Postgres.
+//!
+//! Uses multi-row INSERT with transactions for high write throughput.
 
 use async_trait::async_trait;
-use sqlx::Row;
+use sqlx::{QueryBuilder, Row};
 
 use chronicle_core::error::StoreError;
 use chronicle_core::event::Event;
@@ -13,60 +15,141 @@ use crate::traits::EventStore;
 use super::PostgresBackend;
 use super::query_builder::{SelectBuilder, bind_params};
 
+/// Pre-computed row values for batch INSERT (avoids lifetime issues with QueryBuilder).
+struct EventRow {
+    event_id: String,
+    org_id: String,
+    source: String,
+    topic: String,
+    event_type: String,
+    event_time: chrono::DateTime<chrono::Utc>,
+    ingestion_time: chrono::DateTime<chrono::Utc>,
+    payload: Option<serde_json::Value>,
+    media_type: Option<String>,
+    media_ref: Option<String>,
+    media_blob: Option<Vec<u8>>,
+    media_size: Option<i64>,
+    raw_body: Option<String>,
+}
+
+impl EventRow {
+    fn from_event(event: &Event) -> Self {
+        Self {
+            event_id: event.event_id.to_string(),
+            org_id: event.org_id.as_str().to_string(),
+            source: event.source.as_str().to_string(),
+            topic: event.topic.as_str().to_string(),
+            event_type: event.event_type.as_str().to_string(),
+            event_time: event.event_time,
+            ingestion_time: event.ingestion_time,
+            payload: event.payload.clone(),
+            media_type: event.media.as_ref().map(|m| m.media_type.clone()),
+            media_ref: event.media.as_ref().and_then(|m| m.external_ref.clone()),
+            media_blob: event.media.as_ref().and_then(|m| m.inline_blob.clone()),
+            media_size: event.media.as_ref().map(|m| m.size_bytes as i64),
+            raw_body: event.raw_body.clone(),
+        }
+    }
+}
+
+struct RefRow {
+    event_id: String,
+    org_id: String,
+    entity_type: String,
+    entity_id: String,
+    created_by: String,
+}
+
+/// Max events per multi-row INSERT (13 columns × 500 = 6500 params, under 65535 limit).
+const EVENT_BATCH_SIZE: usize = 500;
+/// Max entity refs per multi-row INSERT (5 columns × 2000 = 10000 params).
+const REF_BATCH_SIZE: usize = 2000;
+
 #[async_trait]
 impl EventStore for PostgresBackend {
     async fn insert_events(&self, events: &[Event]) -> Result<Vec<EventId>, StoreError> {
-        let mut ids = Vec::with_capacity(events.len());
+        if events.is_empty() {
+            return Ok(vec![]);
+        }
 
-        for event in events {
-            let eid = event.event_id.to_string();
-            let media_type = event.media.as_ref().map(|m| m.media_type.clone());
-            let media_ref = event.media.as_ref().and_then(|m| m.external_ref.clone());
-            let media_blob = event.media.as_ref().and_then(|m| m.inline_blob.clone());
-            let media_size = event.media.as_ref().map(|m| m.size_bytes as i64);
+        let ids: Vec<EventId> = events.iter().map(|e| e.event_id).collect();
 
-            sqlx::query(
+        // Pre-compute row values.
+        let event_rows: Vec<EventRow> = events.iter().map(EventRow::from_event).collect();
+        let ref_rows: Vec<RefRow> = events
+            .iter()
+            .flat_map(|event| {
+                event.materialize_entity_refs("ingestion").into_iter().map(|r| RefRow {
+                    event_id: event.event_id.to_string(),
+                    org_id: event.org_id.as_str().to_string(),
+                    entity_type: r.entity_type.as_str().to_string(),
+                    entity_id: r.entity_id.as_str().to_string(),
+                    created_by: r.created_by.clone(),
+                })
+            })
+            .collect();
+
+        // Single transaction for the entire batch.
+        let mut tx = self.pool.begin().await
+            .map_err(|e| StoreError::Internal(e.to_string()))?;
+
+        // Batch INSERT events.
+        for chunk in event_rows.chunks(EVENT_BATCH_SIZE) {
+            let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
                 "INSERT INTO events \
                  (event_id, org_id, source, topic, event_type, event_time, \
                   ingestion_time, payload, media_type, media_ref, media_blob, \
-                  media_size_bytes, raw_body) \
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) \
-                 ON CONFLICT (event_id) DO NOTHING"
-            )
-            .bind(&eid)
-            .bind(event.org_id.as_str())
-            .bind(event.source.as_str())
-            .bind(event.topic.as_str())
-            .bind(event.event_type.as_str())
-            .bind(event.event_time)
-            .bind(event.ingestion_time)
-            .bind(&event.payload)
-            .bind(&media_type)
-            .bind(&media_ref)
-            .bind(&media_blob)
-            .bind(&media_size)
-            .bind(event.raw_body.as_deref())
-            .execute(&self.pool)
-            .await
-            .map_err(|e| StoreError::Internal(e.to_string()))?;
+                  media_size_bytes, raw_body) ",
+            );
 
-            for r in &event.materialize_entity_refs("ingestion") {
-                sqlx::query(
-                    "INSERT INTO entity_refs (event_id, org_id, entity_type, entity_id, created_by) \
-                     VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING"
-                )
-                .bind(&eid)
-                .bind(event.org_id.as_str())
-                .bind(r.entity_type.as_str())
-                .bind(r.entity_id.as_str())
-                .bind(&r.created_by)
-                .execute(&self.pool)
+            qb.push_values(chunk, |mut b, row| {
+                b.push_bind(&row.event_id)
+                    .push_bind(&row.org_id)
+                    .push_bind(&row.source)
+                    .push_bind(&row.topic)
+                    .push_bind(&row.event_type)
+                    .push_bind(row.event_time)
+                    .push_bind(row.ingestion_time)
+                    .push_bind(&row.payload)
+                    .push_bind(&row.media_type)
+                    .push_bind(&row.media_ref)
+                    .push_bind(&row.media_blob)
+                    .push_bind(&row.media_size)
+                    .push_bind(&row.raw_body);
+            });
+            qb.push(" ON CONFLICT (event_id) DO NOTHING");
+
+            qb.build()
+                .execute(&mut *tx)
                 .await
                 .map_err(|e| StoreError::Internal(e.to_string()))?;
-            }
-
-            ids.push(event.event_id);
         }
+
+        // Batch INSERT entity refs.
+        for chunk in ref_rows.chunks(REF_BATCH_SIZE) {
+            let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
+                "INSERT INTO entity_refs \
+                 (event_id, org_id, entity_type, entity_id, created_by) ",
+            );
+
+            qb.push_values(chunk, |mut b, row| {
+                b.push_bind(&row.event_id)
+                    .push_bind(&row.org_id)
+                    .push_bind(&row.entity_type)
+                    .push_bind(&row.entity_id)
+                    .push_bind(&row.created_by);
+            });
+            qb.push(" ON CONFLICT DO NOTHING");
+
+            qb.build()
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| StoreError::Internal(e.to_string()))?;
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| StoreError::Internal(e.to_string()))?;
 
         Ok(ids)
     }
@@ -76,7 +159,6 @@ impl EventStore for PostgresBackend {
             .where_org(org_id.as_str())
             .build();
 
-        // For get_event, add the event_id filter directly
         let full_sql = format!("{sql} AND e.event_id = ${}", params.len() + 1);
 
         let mut q = sqlx::query(&full_sql);
@@ -149,9 +231,29 @@ impl EventStore for PostgresBackend {
         Err(StoreError::Query(format!("Raw SQL not yet supported: {sql}")))
     }
 
+    /// Proper COUNT(*) query instead of loading all results into memory.
     async fn count(&self, query: &StructuredQuery) -> Result<u64, StoreError> {
-        let results = self.query_structured(query).await?;
-        Ok(results.len() as u64)
+        let mut builder = SelectBuilder::custom("COUNT(*) as cnt", "events e")
+            .where_org(query.org_id.as_str())
+            .where_source(query.source.as_ref().map(|s| s.as_str()))
+            .where_event_type(query.event_type.as_ref().map(|t| t.as_str()))
+            .where_time_range(query.time_range.as_ref());
+
+        if let Some((ref etype, ref eid)) = query.entity {
+            builder = builder
+                .join_entity_refs()
+                .where_entity(Some(etype.as_str()), Some(eid.as_str()));
+        }
+
+        let (sql, params) = builder.build();
+        let mut q = sqlx::query(&sql);
+        q = bind_params(q, &params);
+
+        let row = q.fetch_one(&self.pool).await
+            .map_err(|e| StoreError::Query(e.to_string()))?;
+
+        let cnt: i64 = row.get("cnt");
+        Ok(cnt as u64)
     }
 }
 

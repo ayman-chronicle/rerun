@@ -1,7 +1,8 @@
 //! `EventStore` for the Kurrent backend.
 //!
 //! Writes go to BOTH Kurrent (for subscriptions and global ordering)
-//! and Postgres (for queries). Reads always go through Postgres.
+//! and Postgres (for queries). Kurrent appends and Postgres batch insert
+//! run concurrently for maximum throughput.
 
 use async_trait::async_trait;
 use kurrentdb::EventData;
@@ -17,6 +18,8 @@ use super::KurrentBackend;
 #[async_trait]
 impl EventStore for KurrentBackend {
     async fn insert_events(&self, events: &[Event]) -> Result<Vec<EventId>, StoreError> {
+        // Prepare Kurrent event data.
+        let mut kurrent_items: Vec<(String, EventData)> = Vec::with_capacity(events.len());
         for event in events {
             let stream_name = format!("{}-{}", event.source.as_str(), event.event_type.as_str());
 
@@ -33,14 +36,26 @@ impl EventStore for KurrentBackend {
             let event_data = EventData::json(event.event_type.as_str(), &payload)
                 .map_err(|e| StoreError::Internal(format!("serialize event for Kurrent: {e}")))?;
 
-            self.kurrent
-                .append_to_stream(stream_name, &Default::default(), event_data)
-                .await
-                .map_err(|e| StoreError::Internal(format!("Kurrent append: {e}")))?;
+            kurrent_items.push((stream_name, event_data));
         }
 
-        // Also write to Postgres for query support.
-        self.pg.insert_events(events).await
+        // Run Kurrent appends and Postgres batch insert concurrently.
+        let kurrent_client = self.kurrent.clone();
+        let kurrent_fut = async {
+            for (stream_name, event_data) in kurrent_items {
+                kurrent_client
+                    .append_to_stream(stream_name, &Default::default(), event_data)
+                    .await
+                    .map_err(|e| StoreError::Internal(format!("Kurrent append: {e}")))?;
+            }
+            Ok::<(), StoreError>(())
+        };
+
+        let pg_fut = self.pg.insert_events(events);
+
+        let (kurrent_result, pg_result) = tokio::join!(kurrent_fut, pg_fut);
+        kurrent_result?;
+        pg_result
     }
 
     async fn get_event(
