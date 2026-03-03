@@ -14,3 +14,10 @@ chronicle_core = { path = "../chronicle_core" }
 chrono.workspace = true
 egui = "0.33"
 serde_json.workspace = true
+
+[dev-dependencies]
+eframe = { version = "0.33", default-features = false, features = ["default_fonts", "glow"] }
+chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }
+
+[[example]]
+name = "chronicle_detail_demo"
