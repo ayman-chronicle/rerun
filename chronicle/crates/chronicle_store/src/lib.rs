@@ -31,6 +31,8 @@
 //! ```
 
 pub mod engine;
+#[cfg(feature = "hybrid")]
+pub mod hybrid;
 pub mod memory;
 #[cfg(feature = "postgres")]
 pub mod postgres;

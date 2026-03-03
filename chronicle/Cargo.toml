@@ -48,6 +48,8 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
+datafusion = "52"
+object_store = "0.12"
 parking_lot = "0.12"
 nohash-hasher = "0.2"
 insta = { version = "1", features = ["json"] }

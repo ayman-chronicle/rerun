@@ -11,12 +11,15 @@ workspace = true
 [features]
 default = []
 postgres = ["dep:sqlx"]
+hybrid = ["dep:datafusion", "dep:object_store", "postgres"]
 
 [dependencies]
 chronicle_core = { path = "../chronicle_core" }
 
 async-trait = "0.1"
 chrono.workspace = true
+datafusion = { workspace = true, optional = true }
+object_store = { workspace = true, optional = true }
 parking_lot.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -27,3 +30,4 @@ tracing.workspace = true
 [dev-dependencies]
 chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }
 sqlx = { workspace = true }
+tempfile = "3"

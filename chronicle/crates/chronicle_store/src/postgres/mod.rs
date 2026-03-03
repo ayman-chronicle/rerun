@@ -3,7 +3,7 @@
 //! Implements all storage traits against Postgres using sqlx.
 //! This is the Phase 1 production backend.
 
-mod events;
+pub(crate) mod events;
 mod entity_refs;
 mod links;
 mod embeddings;
@@ -19,7 +19,7 @@ use sqlx::PgPool;
 /// call [`PostgresBackend::run_migrations`] to set up the schema.
 #[derive(Clone)]
 pub struct PostgresBackend {
-    pool: PgPool,
+    pub(crate) pool: PgPool,
 }
 
 impl PostgresBackend {
@@ -34,6 +34,11 @@ impl PostgresBackend {
     /// Create from an existing pool (useful for testing).
     pub fn from_pool(pool: PgPool) -> Self {
         Self { pool }
+    }
+
+    /// Access the connection pool (for administrative operations in tests).
+    pub fn pg_pool(&self) -> &PgPool {
+        &self.pool
     }
 
     /// Run database migrations to create/update the schema.
