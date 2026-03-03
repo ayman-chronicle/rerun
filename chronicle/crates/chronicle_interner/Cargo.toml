@@ -1,0 +1,18 @@
+[package]
+name = "chronicle_interner"
+description = "String interning with precomputed hashes. Forked from re_string_interner."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ahash = "0.8"
+nohash-hasher.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

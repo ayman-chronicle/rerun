@@ -1,0 +1,30 @@
+[package]
+name = "chronicle_server"
+description = "REST + gRPC server for Chronicle. Exposes ingestion, query, link, and discovery APIs."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+chronicle_store = { path = "../chronicle_store" }
+chronicle_ingest = { path = "../chronicle_ingest" }
+chronicle_query = { path = "../chronicle_query" }
+chronicle_link = { path = "../chronicle_link" }
+chronicle_embed = { path = "../chronicle_embed" }
+
+axum.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }
+reqwest.workspace = true

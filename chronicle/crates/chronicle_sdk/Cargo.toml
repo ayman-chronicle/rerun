@@ -1,0 +1,20 @@
+[package]
+name = "chronicle_sdk"
+description = "Rust client SDK for Chronicle. Log events, query data, manage links."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+
+chrono.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true

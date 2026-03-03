@@ -1,0 +1,29 @@
+[package]
+name = "chronicle_store"
+description = "Storage trait abstractions for Chronicle. Backends implement these traits."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+postgres = ["dep:sqlx"]
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+
+async-trait = "0.1"
+chrono.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, optional = true }
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }
+sqlx = { workspace = true }

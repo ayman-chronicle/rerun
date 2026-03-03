@@ -1,0 +1,7 @@
+/target/
+/dist/
+*.so
+*.dylib
+__pycache__/
+*.egg-info/
+.env

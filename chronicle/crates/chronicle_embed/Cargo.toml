@@ -1,0 +1,22 @@
+[package]
+name = "chronicle_embed"
+description = "Embedding pipeline for Chronicle: text extraction, model abstraction, vector storage."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+chronicle_store = { path = "../chronicle_store" }
+
+async-trait = "0.1"
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }

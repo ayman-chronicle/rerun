@@ -1,0 +1,18 @@
+[package]
+name = "chronicle_test_fixtures"
+description = "Shared test factories, seeded datasets, and trait test suites for Chronicle backends."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+chronicle_store = { path = "../chronicle_store" }
+chronicle_tuid = { path = "../chronicle_tuid" }
+
+chrono.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

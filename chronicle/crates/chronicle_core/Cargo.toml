@@ -1,0 +1,22 @@
+[package]
+name = "chronicle_core"
+description = "Core domain types for Chronicle: events, entity refs, links, IDs, errors."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_tuid = { path = "../chronicle_tuid" }
+chronicle_interner = { path = "../chronicle_interner" }
+
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true

@@ -1,0 +1,28 @@
+[package]
+name = "chronicle_py"
+description = "Python bindings for Chronicle via PyO3."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "chronicle_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+chronicle_store = { path = "../chronicle_store" }
+chronicle_query = { path = "../chronicle_query" }
+chronicle_link = { path = "../chronicle_link" }
+chronicle_ingest = { path = "../chronicle_ingest" }
+chronicle_embed = { path = "../chronicle_embed" }
+chronicle_server = { path = "../chronicle_server" }
+
+chrono.workspace = true
+pyo3 = { version = "0.23", features = ["extension-module"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

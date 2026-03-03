@@ -1,0 +1,3 @@
+# Override Rerun's PYO3_CONFIG_FILE -- chronicle manages its own Python config.
+[env]
+PYO3_CONFIG_FILE = { value = "pyo3-build.cfg", relative = true, force = true }

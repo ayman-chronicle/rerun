@@ -1,0 +1,21 @@
+[package]
+name = "chronicle_link"
+description = "Entity extraction, JIT entity linking, and link management for Chronicle."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+chronicle_store = { path = "../chronicle_store" }
+
+chrono.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }

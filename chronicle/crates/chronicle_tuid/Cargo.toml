@@ -1,0 +1,23 @@
+[package]
+name = "chronicle_tuid"
+description = "Time-ordered unique 128-bit identifiers. Forked from re_tuid."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["serde"]
+
+## Enable (de)serialization using serde.
+serde = ["dep:serde"]
+
+[dependencies]
+getrandom = "0.2"
+web-time = "1"
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
