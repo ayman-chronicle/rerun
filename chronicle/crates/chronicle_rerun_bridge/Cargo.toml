@@ -20,3 +20,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 chronicle_test_fixtures = { path = "../chronicle_test_fixtures" }
+
+[[example]]
+name = "chronicle_viewer_demo"

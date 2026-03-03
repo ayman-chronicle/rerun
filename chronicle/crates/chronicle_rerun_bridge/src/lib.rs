@@ -90,7 +90,7 @@ impl ChronicleBridge {
 
         for r in &results {
             if let Some(ref payload) = r.event.payload {
-                if let Some(value) = payload.get(field_name).and_then(|v| v.as_f64()) {
+                if let Some(value) = payload.get(field_name).and_then(serde_json::Value::as_f64) {
                     let path = format!(
                         "{}/{}/{}",
                         r.event.source.as_str(),
@@ -115,7 +115,7 @@ impl ChronicleBridge {
         Ok(logged)
     }
 
-    /// Log a slice of EventResults as TextLog entries in the viewer.
+    /// Log a slice of `EventResults` as `TextLog` entries in the viewer.
     fn log_events(&self, results: &[EventResult]) -> Result<(), StoreError> {
         for r in results {
             let path = format!(
