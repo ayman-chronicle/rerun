@@ -983,9 +983,10 @@ fn populate_chronicle_link_overlay(
 
     let path_str = selected_path.to_string();
 
-    // Only activate for Chronicle-style entity paths (source/event_type pattern).
-    let is_chronicle_path =
-        path_str.contains('/') && !path_str.starts_with('/') && !path_str.contains("payload");
+    // Chronicle entity paths: /source/event_type (logged by the bridge).
+    // Strip leading '/' for source matching.
+    let clean_path = path_str.strip_prefix('/').unwrap_or(&path_str);
+    let is_chronicle_path = clean_path.contains('/') && !clean_path.contains("payload");
     if !is_chronicle_path {
         return;
     }
@@ -997,7 +998,10 @@ fn populate_chronicle_link_overlay(
 
     let selected_y = row_positions
         .iter()
-        .find(|(path, _)| path_str.starts_with(path.as_str()) || path.contains(&path_str))
+        .find(|(path, _)| {
+            let clean = path.strip_prefix('/').unwrap_or(path.as_str());
+            clean_path.starts_with(clean) || clean.contains(clean_path)
+        })
         .map(|(_, y)| *y);
 
     let selected_y = match selected_y {
@@ -1006,23 +1010,29 @@ fn populate_chronicle_link_overlay(
     };
 
     let chronicle_sources = ["stripe", "support", "product", "marketing", "billing"];
-    let selected_source = path_str.split('/').next().unwrap_or("");
+    let selected_source = clean_path.split('/').next().unwrap_or("");
+
+    let (x_min, x_max) = time_panel.time_area_x_range;
+    if x_min >= x_max {
+        return;
+    }
+    let x_center = (x_min + x_max) / 2.0;
+    let x_spread = (x_max - x_min) * 0.15;
 
     let mut links = Vec::new();
 
     for (other_path, &other_y) in row_positions.iter() {
-        let other_source = other_path.split('/').next().unwrap_or("");
+        let clean_other = other_path.strip_prefix('/').unwrap_or(other_path.as_str());
+        let other_source = clean_other.split('/').next().unwrap_or("");
 
-        if other_path == &path_str
+        if clean_other == clean_path
             || !chronicle_sources.contains(&other_source)
             || other_source == selected_source
         {
             continue;
         }
 
-        let base_x = row_positions.values().copied().sum::<f32>() / row_positions.len() as f32;
-
-        let x_offset = (other_y - selected_y).abs() * 0.5;
+        let link_idx = links.len() as f32;
 
         let (link_type, confidence) = match (selected_source, other_source) {
             ("stripe", "support") | ("support", "stripe") => ("caused_by", 0.85),
@@ -1031,10 +1041,13 @@ fn populate_chronicle_link_overlay(
             _ => ("related_to", 0.60),
         };
 
+        let source_x = x_center - x_spread + link_idx * 30.0;
+        let target_x = x_center + x_spread - link_idx * 20.0;
+
         links.push(re_time_panel::ResolvedLink {
-            source_x: base_x - x_offset,
+            source_x,
             source_y: selected_y,
-            target_x: base_x + x_offset,
+            target_x,
             target_y: other_y,
             link_type: link_type.to_string(),
             confidence,

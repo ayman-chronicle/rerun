@@ -157,6 +157,10 @@ pub struct TimePanel {
     /// Maps entity path string to screen Y coordinate.
     #[serde(skip)]
     pub row_positions: RowPositions,
+
+    /// The x range of the time area, for link overlay positioning.
+    #[serde(skip)]
+    pub time_area_x_range: (f32, f32),
 }
 
 impl Default for TimePanel {
@@ -178,6 +182,7 @@ impl Default for TimePanel {
             hovered_event_time: None,
             link_overlay: Default::default(),
             row_positions: Default::default(),
+            time_area_x_range: (0.0, 0.0),
         }
     }
 }
@@ -523,6 +528,8 @@ impl TimePanel {
             re_log::debug_assert!(time_x_left < right);
             Rangef::new(time_x_left, right)
         };
+
+        self.time_area_x_range = (time_fg_x_range.min, time_fg_x_range.max);
 
         let draw_loaded_ranges = true;
         data_density_graph::paint_loaded_indicator_bar(
