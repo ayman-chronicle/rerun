@@ -115,7 +115,8 @@ impl ChronicleBridge {
         Ok(logged)
     }
 
-    /// Log a slice of `EventResults` as `TextLog` entries in the viewer.
+    /// Log a slice of `EventResults` as `TextLog` entries in the viewer,
+    /// plus full JSON payloads as `TextDocument` on a child entity path.
     fn log_events(&self, results: &[EventResult]) -> Result<(), StoreError> {
         for r in results {
             let path = format!(
@@ -128,12 +129,23 @@ impl ChronicleBridge {
                 .set_timestamp_secs_since_epoch("event_time", r.event.event_time.timestamp() as f64);
 
             let summary = format_event_summary(&r.event);
-
             if let Err(e) = self.rec.log(
-                path,
+                path.as_str(),
                 &rerun::archetypes::TextLog::new(summary).with_level(r.event.source.as_str()),
             ) {
                 tracing::warn!("Failed to log event: {e}");
+            }
+
+            if let Some(ref payload) = r.event.payload {
+                let json = serde_json::to_string_pretty(payload).unwrap_or_default();
+                let detail_path = format!("{path}/payload");
+                if let Err(e) = self.rec.log(
+                    detail_path.as_str(),
+                    &rerun::archetypes::TextDocument::new(json)
+                        .with_media_type("application/json"),
+                ) {
+                    tracing::warn!("Failed to log payload: {e}");
+                }
             }
         }
         Ok(())
