@@ -957,10 +957,10 @@ pub fn default_blueprint_panel_width(screen_width: f32) -> f32 {
 /// recording store.
 ///
 /// The bridge logs links at entity paths with the convention:
-///   `_links/{src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}`
+///   `_links/{src_source}/{src_type}/{src_epoch}/to/{tgt_source}/{tgt_type}/{tgt_epoch}/{link_type}`
 ///
-/// This function scans those paths, matches the selected entity against source
-/// or target, and resolves row positions to create real causal arcs.
+/// The epoch seconds are converted to screen X via `time_panel.x_from_time()`
+/// so arcs connect at the actual event positions on the timeline.
 fn populate_chronicle_link_overlay(
     selection_state: &ApplicationSelectionState,
     recording: &EntityDb,
@@ -986,7 +986,6 @@ fn populate_chronicle_link_overlay(
     let path_str = selected_path.to_string();
     let clean_path = path_str.strip_prefix('/').unwrap_or(&path_str);
 
-    // Only activate for Chronicle-style entity paths (source/event_type).
     if !clean_path.contains('/')
         || clean_path.contains("payload")
         || clean_path.starts_with("_links")
@@ -996,11 +995,6 @@ fn populate_chronicle_link_overlay(
 
     let row_positions = &time_panel.row_positions;
     if row_positions.is_empty() {
-        return;
-    }
-
-    let (x_min, x_max) = time_panel.time_area_x_range;
-    if x_min >= x_max {
         return;
     }
 
@@ -1015,15 +1009,23 @@ fn populate_chronicle_link_overlay(
             None => continue,
         };
 
-        // Parse: {src_source}/{src_type}/to/{tgt_source}/{tgt_type}/{link_type}
+        // Parse: {src_source}/{src_type}/{src_epoch}/to/{tgt_source}/{tgt_type}/{tgt_epoch}/{link_type}
         let parts: Vec<&str> = remainder.split('/').collect();
-        if parts.len() < 6 || parts[2] != "to" {
+        if parts.len() < 8 || parts[3] != "to" {
             continue;
         }
 
         let src_path = format!("{}/{}", parts[0], parts[1]);
-        let tgt_path = format!("{}/{}", parts[3], parts[4]);
-        let link_type = parts[5];
+        let src_epoch: f64 = match parts[2].parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let tgt_path = format!("{}/{}", parts[4], parts[5]);
+        let tgt_epoch: f64 = match parts[6].parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let link_type = parts[7];
 
         if clean_path != src_path && clean_path != tgt_path {
             continue;
@@ -1046,18 +1048,23 @@ fn populate_chronicle_link_overlay(
             .map(|(_, y)| *y);
 
         if let (Some(src_y), Some(tgt_y)) = (src_y, tgt_y) {
-            let x_center = (x_min + x_max) / 2.0;
-            let x_spread = (x_max - x_min) * 0.15;
-            let idx = links.len() as f32;
+            // Convert epoch seconds to nanoseconds (Rerun stores TimestampNs internally)
+            let src_nanos = (src_epoch * 1e9) as i64;
+            let tgt_nanos = (tgt_epoch * 1e9) as i64;
 
-            links.push(re_time_panel::ResolvedLink {
-                source_x: x_center - x_spread + idx * 20.0,
-                source_y: src_y,
-                target_x: x_center + x_spread - idx * 15.0,
-                target_y: tgt_y,
-                link_type: link_type.to_string(),
-                confidence: 0.85,
-            });
+            let src_x = time_panel.x_from_time(re_log_types::TimeReal::from(src_nanos));
+            let tgt_x = time_panel.x_from_time(re_log_types::TimeReal::from(tgt_nanos));
+
+            if let (Some(sx), Some(tx)) = (src_x, tgt_x) {
+                links.push(re_time_panel::ResolvedLink {
+                    source_x: sx,
+                    source_y: src_y,
+                    target_x: tx,
+                    target_y: tgt_y,
+                    link_type: link_type.to_string(),
+                    confidence: 0.85,
+                });
+            }
         }
     }
 

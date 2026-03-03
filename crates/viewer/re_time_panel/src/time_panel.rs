@@ -188,6 +188,13 @@ impl Default for TimePanel {
 }
 
 impl TimePanel {
+    /// Convert a timeline time value to a screen X coordinate.
+    ///
+    /// Used by the Chronicle link overlay to position arc endpoints at actual event times.
+    pub fn x_from_time(&self, time: impl Into<TimeReal>) -> Option<f32> {
+        self.time_ranges_ui.x_from_time_f32(time.into())
+    }
+
     /// Ensures that all required store subscribers are correctly set up.
     ///
     /// This is implicitly called by [`Self::default`], but may need to be explicitly called in,

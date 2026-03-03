@@ -173,7 +173,7 @@ impl ChronicleBridge {
         results: &[EventResult],
         links: &[EventLink],
     ) -> Result<(usize, usize), StoreError> {
-        let mut id_to_path: std::collections::HashMap<String, String> =
+        let mut id_to_path: std::collections::HashMap<String, (String, i64)> =
             std::collections::HashMap::new();
 
         for r in results {
@@ -182,7 +182,8 @@ impl ChronicleBridge {
                 r.event.source.as_str(),
                 r.event.event_type.as_str()
             );
-            id_to_path.insert(r.event.event_id.to_string(), path);
+            let epoch = r.event.event_time.timestamp();
+            id_to_path.insert(r.event.event_id.to_string(), (path, epoch));
         }
 
         self.log_events(results)?;
@@ -193,12 +194,12 @@ impl ChronicleBridge {
             let src_id = link.source_event_id.to_string();
             let tgt_id = link.target_event_id.to_string();
 
-            if let (Some(src_path), Some(tgt_path)) =
+            if let (Some((src_path, src_epoch)), Some((tgt_path, tgt_epoch))) =
                 (id_to_path.get(&src_id), id_to_path.get(&tgt_id))
             {
                 let link_entity = format!(
-                    "_links/{}/to/{}/{}",
-                    src_path, tgt_path, link.link_type
+                    "_links/{}/{}/to/{}/{}/{}",
+                    src_path, src_epoch, tgt_path, tgt_epoch, link.link_type
                 );
 
                 let archetype = rerun::archetypes::ChronicleLink::new(
