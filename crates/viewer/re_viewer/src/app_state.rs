@@ -313,6 +313,12 @@ impl AppState {
                     );
                 }
 
+                populate_chronicle_link_overlay(
+                    selection_state,
+                    store_context.recording,
+                    time_panel,
+                );
+
                 // The root container cannot be dragged.
                 let drag_and_drop_manager =
                     DragAndDropManager::new(Item::Container(viewport_ui.blueprint.root_container));
@@ -945,6 +951,98 @@ fn check_for_clicked_hyperlinks(egui_ctx: &egui::Context, command_sender: &Comma
 
 pub fn default_blueprint_panel_width(screen_width: f32) -> f32 {
     (0.35 * screen_width).min(200.0).round()
+}
+
+/// Populate the Chronicle link overlay when a Chronicle-style entity is selected.
+///
+/// Detects entity paths matching Chronicle's `{source}/{event_type}` pattern and
+/// resolves links by searching `row_positions` for sibling source rows. Currently
+/// uses synthetic demo arcs; a real implementation would read EventLink data from
+/// the store.
+fn populate_chronicle_link_overlay(
+    selection_state: &ApplicationSelectionState,
+    _recording: &EntityDb,
+    time_panel: &mut re_time_panel::TimePanel,
+) {
+    time_panel.link_overlay.clear();
+
+    let selected_path: re_log_types::EntityPath = {
+        let found = selection_state
+            .selected_items()
+            .iter_items()
+            .filter_map(|item| match item {
+                Item::InstancePath(ip) => Some(ip.entity_path.clone()),
+                _ => None,
+            })
+            .next();
+        match found {
+            Some(p) => p,
+            None => return,
+        }
+    };
+
+    let path_str = selected_path.to_string();
+
+    // Only activate for Chronicle-style entity paths (source/event_type pattern).
+    let is_chronicle_path =
+        path_str.contains('/') && !path_str.starts_with('/') && !path_str.contains("payload");
+    if !is_chronicle_path {
+        return;
+    }
+
+    let row_positions = &time_panel.row_positions;
+    if row_positions.is_empty() {
+        return;
+    }
+
+    let selected_y = row_positions
+        .iter()
+        .find(|(path, _)| path_str.starts_with(path.as_str()) || path.contains(&path_str))
+        .map(|(_, y)| *y);
+
+    let selected_y = match selected_y {
+        Some(y) => y,
+        None => return,
+    };
+
+    let chronicle_sources = ["stripe", "support", "product", "marketing", "billing"];
+    let selected_source = path_str.split('/').next().unwrap_or("");
+
+    let mut links = Vec::new();
+
+    for (other_path, &other_y) in row_positions.iter() {
+        let other_source = other_path.split('/').next().unwrap_or("");
+
+        if other_path == &path_str
+            || !chronicle_sources.contains(&other_source)
+            || other_source == selected_source
+        {
+            continue;
+        }
+
+        let base_x = row_positions.values().copied().sum::<f32>() / row_positions.len() as f32;
+
+        let x_offset = (other_y - selected_y).abs() * 0.5;
+
+        let (link_type, confidence) = match (selected_source, other_source) {
+            ("stripe", "support") | ("support", "stripe") => ("caused_by", 0.85),
+            ("support", "billing") | ("billing", "support") => ("led_to", 0.90),
+            ("marketing", "product") | ("product", "marketing") => ("campaign_conversion", 0.75),
+            _ => ("related_to", 0.60),
+        };
+
+        links.push(re_time_panel::ResolvedLink {
+            source_x: base_x - x_offset,
+            source_y: selected_y,
+            target_x: base_x + x_offset,
+            target_y: other_y,
+            link_type: link_type.to_string(),
+            confidence,
+        });
+    }
+
+    links.truncate(5);
+    time_panel.link_overlay.set_links(links);
 }
 
 impl re_byte_size::MemUsageTreeCapture for AppState {
