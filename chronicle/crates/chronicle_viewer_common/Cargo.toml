@@ -1,0 +1,16 @@
+[package]
+name = "chronicle_viewer_common"
+description = "Shared viewer widgets for Chronicle: event detail, entity refs, links, payload."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+chronicle_core = { path = "../chronicle_core" }
+
+chrono.workspace = true
+egui = "0.33"
+serde_json.workspace = true
