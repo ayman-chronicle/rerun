@@ -28,6 +28,7 @@ use re_viewer_context::{
 };
 use re_viewport_blueprint::ViewportBlueprint;
 
+use crate::link_overlay::{LinkOverlayState, RowPositions};
 use crate::recursive_chunks_per_timeline_subscriber::PathRecursiveChunksPerTimelineStoreSubscriber;
 use crate::streams_tree_data::{EntityData, StreamsTreeData, components_for_entity};
 use crate::time_axis::TimelineAxis;
@@ -147,6 +148,15 @@ pub struct TimePanel {
     /// If we're hovering a specific event - what time is it?
     #[serde(skip)]
     hovered_event_time: Option<TimeInt>,
+
+    /// Link overlay state for Chronicle causal arcs.
+    #[serde(skip)]
+    pub link_overlay: LinkOverlayState,
+
+    /// Row center Y positions, populated during `show_entity()`.
+    /// Maps entity path string to screen Y coordinate.
+    #[serde(skip)]
+    pub row_positions: RowPositions,
 }
 
 impl Default for TimePanel {
@@ -166,6 +176,8 @@ impl Default for TimePanel {
             scroll_to_me_item: None,
             time_edit_string: None,
             hovered_event_time: None,
+            link_overlay: Default::default(),
+            row_positions: Default::default(),
         }
     }
 }
@@ -216,6 +228,7 @@ impl TimePanel {
 
         self.data_density_graph_painter.begin_frame(ui.ctx());
         self.hovered_event_time = None;
+        self.row_positions.clear();
 
         let mut time_commands = Vec::new();
 
@@ -649,6 +662,11 @@ impl TimePanel {
             });
         });
 
+        self.link_overlay.paint(
+            &lower_time_area_painter,
+            Rect::from_x_y_ranges(time_fg_x_range, streams_rect.y_range()),
+        );
+
         {
             // Paint a shadow between the stream names on the left
             // and the data on the right:
@@ -887,6 +905,9 @@ impl TimePanel {
                     time_area_response.rect.x_range(),
                     response_rect.y_range(),
                 );
+
+                self.row_positions
+                    .insert(entity_path.to_string(), row_rect.center().y);
 
                 highlight_timeline_row(ui, ctx, time_area_painter, &item.to_item(), &row_rect);
 

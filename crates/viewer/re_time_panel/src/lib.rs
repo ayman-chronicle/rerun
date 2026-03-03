@@ -6,6 +6,7 @@
 #![warn(clippy::iter_over_hash_type)] //  TODO(#6198): enable everywhere
 
 mod data_density_graph;
+mod link_overlay;
 mod paint_ticks;
 mod recursive_chunks_per_timeline_subscriber;
 mod streams_tree_data;
@@ -15,6 +16,7 @@ mod time_panel;
 mod time_ranges_ui;
 mod time_selection_ui;
 
+pub use link_overlay::{LinkOverlayState, ResolvedLink, RowPositions};
 pub use time_panel::TimePanel;
 #[cfg(feature = "testing")]
 pub use {streams_tree_data::StreamsTreeData, time_panel::TimePanelSource};
