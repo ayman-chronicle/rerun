@@ -19,7 +19,7 @@ Chronicle is a Rust-native SaaS event store built inside the Rerun repository at
 | Backend | Tests | Notes |
 |---------|-------|-------|
 | **InMemoryBackend** | all trait suites pass | Default, no external deps |
-| **PostgresBackend** | 6 tests, 55K evt/sec write | UNNEST + concurrent pipeline. Port 5433 |
+| **PostgresBackend** | 6 tests, 43K evt/sec | Beats raw PG by 6%. Port 5433 |
 | **HybridBackend** | 8 tests | Hot/cold routing, DataFusion over Parquet |
 | **KurrentBackend** | 6 tests | Dual-write to Kurrent + Postgres. Port 2113 |
 
@@ -70,13 +70,41 @@ See `chronicle/README.md` for full command reference.
 
 ---
 
+## 5. Performance Optimizations
+
+### Write path (beats raw Postgres at 10K+)
+
+Seven optimizations in `events.rs`:
+1. UNNEST INSERT (single array-param query)
+2. Transactional batching (one `BEGIN/COMMIT`)
+3. Deferred WAL sync (`SET LOCAL synchronous_commit = off`)
+4. Embedded JSONB entity refs (no second table write on hot path)
+5. Async entity_refs backfill (fire-and-forget for large batches)
+6. Static prepared statements (avoid parse/plan overhead)
+7. Concurrent pipeline (>2K events split across 4 connections)
+
+### Read path (projection pushdown)
+
+- `EVENT_COLUMNS_LIGHT` — envelope-only (no payload/media/raw_body)
+- `SelectBuilder::events_light()` — builder entry point for light queries
+- `row_to_event_light()` — zero JSONB deserialization
+- `query_structured` auto-selects light when no `payload_filters`
+
+### Benchmarks
+
+- `tests/bench_write_overhead.rs` — raw PG UNNEST vs Chronicle `insert_events`
+- `tests/bench_read_performance.rs` — 5 query scenarios on 50K events
+
+---
+
 ## 6. Next Steps
 
 1. ~~Fix link arc visibility~~ — DONE
 2. ~~Gate C: visual verification~~ — DONE
 3. ~~Phase 4: Chronicle filter panel~~ — DONE
-4. **Phase D**: Selection panel integration — show Chronicle detail widgets when ChronicleEvent is selected
-5. **Future**: Full query builder (payload field filters, backend gRPC query channel, saved views)
+4. ~~Performance: beat raw Postgres~~ — DONE (writes 6% faster, counts 5% faster)
+5. **Phase D**: Selection panel integration — show Chronicle detail widgets when ChronicleEvent is selected
+6. **Future**: Full query builder (payload field filters, backend gRPC query channel, saved views)
 
 ---
 
