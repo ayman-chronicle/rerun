@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use crate::subscriptions::SubscriptionService;
 use crate::traits::{
     EmbeddingStore, EntityRefStore, EventLinkStore, EventStore, SchemaRegistry,
 };
@@ -47,6 +48,8 @@ pub struct StorageEngine {
     pub links: Arc<dyn EventLinkStore>,
     pub embeddings: Arc<dyn EmbeddingStore>,
     pub schemas: Arc<dyn SchemaRegistry>,
+    /// Push-based event subscriptions. `None` if the backend doesn't support them.
+    pub subscriptions: Option<Arc<dyn SubscriptionService>>,
 }
 
 #[cfg(test)]

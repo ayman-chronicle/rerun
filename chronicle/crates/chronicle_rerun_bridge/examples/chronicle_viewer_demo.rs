@@ -528,6 +528,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         links: backend.clone(),
         embeddings: backend.clone(),
         schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
     };
 
     // -- Seed events & collect link candidates ----------------------------------

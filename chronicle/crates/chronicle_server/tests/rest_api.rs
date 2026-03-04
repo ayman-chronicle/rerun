@@ -21,6 +21,7 @@ async fn start_test_server() -> String {
         links: backend.clone(),
         embeddings: backend.clone(),
         schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
     };
     let state = ServerState::new(engine);
     let router = build_router(state);

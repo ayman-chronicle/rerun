@@ -12,16 +12,22 @@ use super::state::InMemoryBackend;
 #[async_trait]
 impl EventStore for InMemoryBackend {
     async fn insert_events(&self, events: &[chronicle_core::event::Event]) -> Result<Vec<EventId>, StoreError> {
-        let mut store = self.events.write();
-        let mut refs_store = self.entity_refs.write();
-        let mut ids = Vec::with_capacity(events.len());
+        let ids = {
+            let mut store = self.events.write();
+            let mut refs_store = self.entity_refs.write();
+            let mut ids = Vec::with_capacity(events.len());
 
-        for event in events {
-            ids.push(event.event_id);
-            let materialized = event.materialize_entity_refs("ingestion");
-            refs_store.extend(materialized);
-            store.insert(event.event_id, event.clone());
-        }
+            for event in events {
+                ids.push(event.event_id);
+                let materialized = event.materialize_entity_refs("ingestion");
+                refs_store.extend(materialized);
+                store.insert(event.event_id, event.clone());
+            }
+
+            ids
+        };
+
+        self.dispatch_to_subscribers(events).await;
 
         Ok(ids)
     }

@@ -121,6 +121,7 @@ mod tests {
             links: backend.clone(),
             embeddings: backend.clone(),
             schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
         };
         (QueryService::new(engine), backend)
     }

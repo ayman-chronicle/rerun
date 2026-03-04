@@ -106,6 +106,7 @@ mod tests {
             links: backend.clone(),
             embeddings: backend.clone(),
             schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
         };
         let model = Arc::new(MockEmbeddingModel::new(4));
         (EmbedService::new(engine, model), backend)

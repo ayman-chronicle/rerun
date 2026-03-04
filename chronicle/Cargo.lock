@@ -1009,6 +1009,7 @@ name = "chronicle_py"
 version = "0.1.0"
 dependencies = [
  "arrow",
+ "async-trait",
  "chronicle_core",
  "chronicle_embed",
  "chronicle_ingest",

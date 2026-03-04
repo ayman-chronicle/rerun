@@ -40,7 +40,9 @@ pub mod kurrent;
 pub mod memory;
 #[cfg(feature = "postgres")]
 pub mod postgres;
+pub mod subscriptions;
 pub mod traits;
 
 pub use engine::StorageEngine;
+pub use subscriptions::*;
 pub use traits::*;

@@ -37,6 +37,7 @@ fn make_stack() -> (StorageEngine, QueryService, LinkService, EmbedService) {
         links: backend.clone(),
         embeddings: backend.clone(),
         schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
     };
     let query = QueryService::new(engine.clone());
     let link = LinkService::new(engine.clone());
@@ -336,6 +337,7 @@ async fn golden_7_concurrent_ingestion() {
         links: backend.clone(),
         embeddings: backend.clone(),
         schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
     };
 
     let n_producers = 3;

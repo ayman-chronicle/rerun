@@ -15,5 +15,6 @@ mod links;
 mod embeddings;
 mod schemas;
 mod state;
+mod subscriptions;
 
 pub use state::InMemoryBackend;

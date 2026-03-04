@@ -20,10 +20,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use chronicle_core::error::StoreError;
 use chronicle_core::event::EventBuilder;
 use chronicle_core::ids::*;
 use chronicle_core::link::EventLink;
@@ -56,6 +58,7 @@ impl Chronicle {
             links: backend.clone(),
             embeddings: backend.clone(),
             schemas: backend.clone(),
+            subscriptions: Some(backend.clone()),
         };
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| PyValueError::new_err(format!("Runtime error: {e}")))?;
@@ -415,6 +418,113 @@ impl Chronicle {
         serde_json::to_string(&tools)
             .map_err(|e| PyValueError::new_err(format!("{e}")))
     }
+
+    /// Subscribe to events matching a filter. The callback fires for each
+    /// matching event as it arrives via `log()`.
+    ///
+    /// ```python
+    /// handle = ch.subscribe(
+    ///     sources=["stripe"],
+    ///     entity_type="customer",
+    ///     entity_id="cust_042",
+    ///     callback=lambda event: print(f"New: {event['event_type']}")
+    /// )
+    /// ch.log("stripe", "payments", "charge.created",
+    ///        entities={"customer": "cust_042"}, payload={...})
+    /// # → callback fires
+    /// handle.cancel()
+    /// ```
+    #[pyo3(signature = (callback, *, sources=None, event_types=None, entity_type=None, entity_id=None, payload_contains=None))]
+    fn subscribe(
+        &self,
+        callback: PyObject,
+        sources: Option<Vec<String>>,
+        event_types: Option<Vec<String>>,
+        entity_type: Option<&str>,
+        entity_id: Option<&str>,
+        payload_contains: Option<String>,
+    ) -> PyResult<PySubscriptionHandle> {
+        use chronicle_store::subscriptions::{SubFilter, SubscriptionPosition};
+
+        let subs = self.engine.subscriptions.as_ref().ok_or_else(|| {
+            PyValueError::new_err("This backend does not support subscriptions")
+        })?;
+
+        let filter = SubFilter {
+            org_id: Some(OrgId::new(&self.org_id)),
+            sources: sources.map(|v| v.into_iter().map(|s| Source::new(s.as_str())).collect()),
+            event_types: event_types
+                .map(|v| v.into_iter().map(|t| EventType::new(t.as_str())).collect()),
+            entity: match (entity_type, entity_id) {
+                (Some(t), Some(id)) => {
+                    Some((EntityType::new(t), EntityId::new(id)))
+                }
+                _ => None,
+            },
+            payload_contains,
+        };
+
+        let handler = Arc::new(PyEventHandler { callback });
+
+        let handle = self
+            .runtime
+            .block_on(subs.subscribe(filter, SubscriptionPosition::End, handler))
+            .map_err(|e| PyValueError::new_err(format!("Subscribe failed: {e}")))?;
+
+        Ok(PySubscriptionHandle {
+            inner: Some(handle),
+        })
+    }
+}
+
+/// Python subscription handle. Call `cancel()` to stop receiving events.
+#[pyclass]
+struct PySubscriptionHandle {
+    inner: Option<chronicle_store::subscriptions::SubscriptionHandle>,
+}
+
+#[pymethods]
+impl PySubscriptionHandle {
+    fn cancel(&mut self) {
+        if let Some(handle) = self.inner.take() {
+            handle.cancel();
+        }
+    }
+}
+
+/// Wraps a Python callable as an [`EventHandler`].
+///
+/// Acquires the GIL and calls the Python function with the event
+/// serialized as a JSON dict.
+struct PyEventHandler {
+    callback: PyObject,
+}
+
+// PyObject (the Python callback) is not Send/Sync by default, but we only
+// access it inside `Python::with_gil` which acquires the GIL, making access safe.
+#[allow(unsafe_code)]
+unsafe impl Send for PyEventHandler {}
+#[allow(unsafe_code)]
+unsafe impl Sync for PyEventHandler {}
+
+#[async_trait]
+impl chronicle_store::subscriptions::EventHandler for PyEventHandler {
+    async fn handle(&self, event: &chronicle_core::event::Event) -> Result<(), StoreError> {
+        let json_str = serde_json::to_string(event).unwrap_or_default();
+
+        Python::with_gil(|py| {
+            let json_module = py.import_bound("json").map_err(|e| {
+                StoreError::Internal(format!("Python json import: {e}"))
+            })?;
+            let dict = json_module
+                .call_method1("loads", (json_str.as_str(),))
+                .map_err(|e| StoreError::Internal(format!("JSON parse: {e}")))?;
+            self.callback.call1(py, (dict,)).map_err(|e| {
+                StoreError::Internal(format!("Callback error: {e}"))
+            })?;
+            Ok(())
+        })
+    }
 }
 
 /// Serialize events to Arrow IPC stream bytes.
@@ -449,5 +559,6 @@ fn py_dict_to_json(dict: &Bound<'_, PyDict>) -> PyResult<String> {
 #[pymodule]
 fn chronicle_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Chronicle>()?;
+    m.add_class::<PySubscriptionHandle>()?;
     Ok(())
 }

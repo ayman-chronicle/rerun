@@ -1,8 +1,7 @@
-//! Push subscription support via Kurrent persistent subscriptions.
+//! Kurrent implementation of [`SubscriptionService`].
 //!
-//! The [`SubscriptionService`] trait defines a backend-agnostic way to
-//! receive events as they are written. The Kurrent implementation uses
-//! native catch-up subscriptions on `$all` for low-latency push delivery.
+//! Uses Kurrent's native `$all` catch-up subscription for low-latency
+//! push delivery. Filter matching is applied client-side.
 
 use std::sync::Arc;
 
@@ -11,69 +10,15 @@ use tokio::sync::broadcast;
 
 use chronicle_core::error::StoreError;
 use chronicle_core::event::Event;
-use chronicle_core::ids::{EventType, OrgId, Source};
 
-// ---------------------------------------------------------------------------
-// Trait definition (backend-agnostic)
-// ---------------------------------------------------------------------------
-
-/// Position from which to start a subscription.
-#[derive(Debug, Clone)]
-pub enum SubscriptionPosition {
-    /// From the very beginning of the stream/log.
-    Beginning,
-    /// From the current end (only new events).
-    End,
-}
-
-/// Filter for which events a subscription should receive.
-#[derive(Debug, Clone, Default)]
-pub struct SubFilter {
-    pub org_id: Option<OrgId>,
-    pub sources: Option<Vec<Source>>,
-    pub event_types: Option<Vec<EventType>>,
-}
-
-/// A handle to a running subscription. Drop to unsubscribe.
-pub struct SubscriptionHandle {
-    _cancel: broadcast::Sender<()>,
-}
-
-impl SubscriptionHandle {
-    pub fn cancel(self) {
-        drop(self._cancel);
-    }
-}
-
-/// Receives events from a subscription.
-#[async_trait]
-pub trait EventHandler: Send + Sync + 'static {
-    async fn handle(&self, event: &Event) -> Result<(), StoreError>;
-}
-
-/// Push-based event subscription service.
-#[async_trait]
-pub trait SubscriptionService: Send + Sync + 'static {
-    async fn subscribe(
-        &self,
-        filter: SubFilter,
-        position: SubscriptionPosition,
-        handler: Arc<dyn EventHandler>,
-    ) -> Result<SubscriptionHandle, StoreError>;
-}
-
-// ---------------------------------------------------------------------------
-// Kurrent implementation
-// ---------------------------------------------------------------------------
-
+use crate::subscriptions::{
+    EventHandler, SubFilter, SubscriptionHandle, SubscriptionPosition, SubscriptionService,
+    matches_filter,
+};
 use super::KurrentBackend;
 
 #[async_trait]
 impl SubscriptionService for KurrentBackend {
-    /// Subscribe to events via Kurrent's `$all` catch-up subscription.
-    ///
-    /// Spawns a background task that reads from `$all` and invokes the
-    /// handler for each event matching the filter.
     async fn subscribe(
         &self,
         filter: SubFilter,
@@ -128,25 +73,6 @@ impl SubscriptionService for KurrentBackend {
             }
         });
 
-        Ok(SubscriptionHandle { _cancel: cancel_tx })
+        Ok(SubscriptionHandle::new(cancel_tx))
     }
-}
-
-fn matches_filter(event: &Event, filter: &SubFilter) -> bool {
-    if let Some(ref org) = filter.org_id {
-        if event.org_id != *org {
-            return false;
-        }
-    }
-    if let Some(ref sources) = filter.sources {
-        if !sources.iter().any(|s| event.source == *s) {
-            return false;
-        }
-    }
-    if let Some(ref types) = filter.event_types {
-        if !types.iter().any(|t| event.event_type == *t) {
-            return false;
-        }
-    }
-    true
 }
