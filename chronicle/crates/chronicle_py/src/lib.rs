@@ -475,6 +475,49 @@ impl Chronicle {
             inner: Some(handle),
         })
     }
+
+    /// Ingest a raw Stripe webhook JSON body.
+    ///
+    /// Automatically extracts entity refs (customer, subscription, etc.),
+    /// derives the topic, and stores the full payload. Returns the event ID.
+    ///
+    /// ```python
+    /// event_id = ch.ingest_stripe(webhook_json_string)
+    /// timeline = ch.timeline("customer", "cus_042")  # includes the event
+    /// ```
+    fn ingest_stripe(&self, webhook_json: &str) -> PyResult<String> {
+        let event = chronicle_stripe::convert_webhook(webhook_json, &self.org_id)
+            .map_err(|e| PyValueError::new_err(format!("Stripe conversion: {e}")))?;
+
+        let event_id = event.event_id;
+
+        self.runtime
+            .block_on(self.engine.events.insert_events(&[event]))
+            .map_err(|e| PyValueError::new_err(format!("Insert failed: {e}")))?;
+
+        Ok(event_id.to_string())
+    }
+
+    /// Batch-ingest multiple Stripe webhook JSON bodies.
+    ///
+    /// Returns a list of event IDs. Failed conversions are skipped
+    /// with a warning (partial success).
+    fn ingest_stripe_batch(&self, webhook_jsons: Vec<String>) -> PyResult<Vec<String>> {
+        let mut events = Vec::with_capacity(webhook_jsons.len());
+        for json in &webhook_jsons {
+            match chronicle_stripe::convert_webhook(json, &self.org_id) {
+                Ok(event) => events.push(event),
+                Err(e) => eprintln!("Skipping invalid Stripe webhook: {e}"),
+            }
+        }
+
+        let ids = self
+            .runtime
+            .block_on(self.engine.events.insert_events(&events))
+            .map_err(|e| PyValueError::new_err(format!("Insert failed: {e}")))?;
+
+        Ok(ids.iter().map(|id| id.to_string()).collect())
+    }
 }
 
 /// Python subscription handle. Call `cancel()` to stop receiving events.

@@ -1017,6 +1017,7 @@ dependencies = [
  "chronicle_query",
  "chronicle_server",
  "chronicle_store",
+ "chronicle_stripe",
  "chrono",
  "pyo3",
  "serde",
@@ -1109,6 +1110,17 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "chronicle_stripe"
+version = "0.1.0"
+dependencies = [
+ "chronicle_core",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

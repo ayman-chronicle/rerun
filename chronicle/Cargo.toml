@@ -14,6 +14,7 @@ members = [
     "crates/chronicle_py",
     "crates/chronicle_rerun_bridge",
     "crates/chronicle_viewer_common",
+    "crates/chronicle_stripe",
     "crates/chronicle_test_fixtures",
 ]
 
