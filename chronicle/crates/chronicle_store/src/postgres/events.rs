@@ -298,7 +298,14 @@ impl EventStore for PostgresBackend {
         &self,
         query: &StructuredQuery,
     ) -> Result<Vec<EventResult>, StoreError> {
-        let mut builder = SelectBuilder::events()
+        let needs_payload = !query.payload_filters.is_empty();
+        let mut builder = if needs_payload {
+            SelectBuilder::events()
+        } else {
+            SelectBuilder::events_light()
+        };
+
+        builder = builder
             .where_org(query.org_id.as_str())
             .where_source(query.source.as_ref().map(|s| s.as_str()))
             .where_event_type(query.event_type.as_ref().map(|t| t.as_str()))
@@ -322,10 +329,16 @@ impl EventStore for PostgresBackend {
             .await
             .map_err(|e| StoreError::Query(e.to_string()))?;
 
+        let converter = if needs_payload {
+            row_to_event
+        } else {
+            row_to_event_light
+        };
+
         Ok(rows
             .iter()
             .map(|r| EventResult {
-                event: row_to_event(r),
+                event: converter(r),
                 entity_refs: vec![],
                 search_distance: None,
             })
@@ -461,7 +474,7 @@ impl PostgresBackend {
 // Row conversion
 // ---------------------------------------------------------------------------
 
-/// Convert a sqlx Row into a domain Event.
+/// Convert a full sqlx Row (all columns) into a domain Event.
 pub(crate) fn row_to_event(row: &sqlx::postgres::PgRow) -> Event {
     let event_id_str: String = row.get("event_id");
     let media_type: Option<String> = row.get("media_type");
@@ -488,5 +501,27 @@ pub(crate) fn row_to_event(row: &sqlx::postgres::PgRow) -> Event {
         media,
         entity_refs: vec![],
         raw_body: row.get("raw_body"),
+    }
+}
+
+/// Convert an envelope-only row (light projection) into a domain Event.
+///
+/// Payload, media, and raw_body are set to `None` — the caller gets fast
+/// access to envelope fields without paying for JSONB deserialization.
+fn row_to_event_light(row: &sqlx::postgres::PgRow) -> Event {
+    let event_id_str: String = row.get("event_id");
+
+    Event {
+        event_id: event_id_str.parse().unwrap_or_else(|_| EventId::new()),
+        org_id: OrgId::new(row.get::<String, _>("org_id").as_str()),
+        source: Source::new(row.get::<String, _>("source").as_str()),
+        topic: Topic::new(row.get::<String, _>("topic").as_str()),
+        event_type: EventType::new(row.get::<String, _>("event_type").as_str()),
+        event_time: row.get("event_time"),
+        ingestion_time: row.get("ingestion_time"),
+        payload: None,
+        media: None,
+        entity_refs: vec![],
+        raw_body: None,
     }
 }

@@ -19,11 +19,17 @@
 
 use chronicle_core::query::OrderBy;
 
-/// The columns we SELECT for event queries -- defined once, used everywhere.
+/// All columns for full event queries (get_event, query_timeline).
 pub const EVENT_COLUMNS: &str =
     "e.event_id, e.org_id, e.source, e.topic, e.event_type, e.event_time, \
      e.ingestion_time, e.payload, e.media_type, e.media_ref, e.media_blob, \
      e.media_size_bytes, e.raw_body";
+
+/// Envelope-only columns for listing queries. Skips payload, media, and
+/// raw_body — avoids JSONB deserialization and large column transfer.
+pub const EVENT_COLUMNS_LIGHT: &str =
+    "e.event_id, e.org_id, e.source, e.topic, e.event_type, e.event_time, \
+     e.ingestion_time";
 
 /// A parameterized SQL value to bind at execution time.
 #[derive(Debug, Clone)]
@@ -55,6 +61,24 @@ impl SelectBuilder {
     pub fn events() -> Self {
         Self {
             select: EVENT_COLUMNS.to_string(),
+            from: "events e".to_string(),
+            joins: Vec::new(),
+            conditions: Vec::new(),
+            params: Vec::new(),
+            order: None,
+            limit_val: None,
+            next_param: 1,
+        }
+    }
+
+    /// Start a SELECT with envelope-only columns (no payload/media/raw_body).
+    ///
+    /// Use for listing and filtering queries where the caller doesn't need
+    /// the full event body. Dramatically reduces deserialization cost and
+    /// network transfer for large result sets.
+    pub fn events_light() -> Self {
+        Self {
+            select: EVENT_COLUMNS_LIGHT.to_string(),
             from: "events e".to_string(),
             joins: Vec::new(),
             conditions: Vec::new(),
