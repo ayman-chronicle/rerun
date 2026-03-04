@@ -23,7 +23,7 @@ chronicle_server = { path = "../chronicle_server" }
 
 arrow = { workspace = true, features = ["ipc"] }
 chrono.workspace = true
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.21", features = ["extension-module"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

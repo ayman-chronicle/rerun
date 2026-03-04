@@ -275,7 +275,7 @@ impl Chronicle {
             results.into_iter().map(|r| r.event).collect();
 
         let ipc_bytes = events_to_ipc_bytes(&events)?;
-        Ok(pyo3::types::PyBytes::new(py, &ipc_bytes).into())
+        Ok(pyo3::types::PyBytes::new_bound(py, &ipc_bytes).into())
     }
 
     /// Get entity timeline as Arrow IPC bytes.
@@ -310,7 +310,7 @@ impl Chronicle {
             results.into_iter().map(|r| r.event).collect();
 
         let ipc_bytes = events_to_ipc_bytes(&events)?;
-        Ok(pyo3::types::PyBytes::new(py, &ipc_bytes).into())
+        Ok(pyo3::types::PyBytes::new_bound(py, &ipc_bytes).into())
     }
 
     /// List entity types. Returns JSON string.
@@ -441,7 +441,7 @@ fn events_to_ipc_bytes(events: &[chronicle_core::event::Event]) -> PyResult<Vec<
 }
 
 fn py_dict_to_json(dict: &Bound<'_, PyDict>) -> PyResult<String> {
-    let json_module = dict.py().import("json")?;
+    let json_module = dict.py().import_bound("json")?;
     let json_str = json_module.call_method1("dumps", (dict,))?;
     json_str.extract::<String>()
 }
