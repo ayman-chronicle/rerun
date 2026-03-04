@@ -2,6 +2,11 @@
 //!
 //! Implements all storage traits against Postgres using sqlx.
 //! This is the Phase 1 production backend.
+//!
+//! Write path is optimized for throughput: events go into a single
+//! transactional UNNEST with deferred WAL, while entity_refs are
+//! populated asynchronously. Call [`PostgresBackend::flush_pending_refs`]
+//! in tests to wait for async ref writes to complete.
 
 pub(crate) mod events;
 mod entity_refs;
@@ -18,6 +23,10 @@ use sqlx::PgPool;
 ///
 /// Create via [`PostgresBackend::new`] with a database URL, then
 /// call [`PostgresBackend::run_migrations`] to set up the schema.
+///
+/// Write path: events are inserted in a single transactional UNNEST with
+/// deferred WAL sync. Entity refs are written synchronously for small
+/// batches (< 2000 events) and asynchronously for large batches.
 #[derive(Clone)]
 pub struct PostgresBackend {
     pub(crate) pool: PgPool,
@@ -51,6 +60,12 @@ impl PostgresBackend {
             .execute(&self.pool)
             .await
             .map_err(|e| StoreError::Migration(e.to_string()))?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/002_entity_refs_jsonb_index.sql"
+        ))
+        .execute(&self.pool)
+        .await
+        .map_err(|e| StoreError::Migration(e.to_string()))?;
         Ok(())
     }
 }

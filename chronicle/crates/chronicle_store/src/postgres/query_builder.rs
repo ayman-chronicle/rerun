@@ -122,7 +122,7 @@ impl SelectBuilder {
         self
     }
 
-    /// Filter by entity (requires entity_refs join).
+    /// Filter by entity (requires entity_refs join). Legacy — prefer `where_entity_jsonb`.
     pub fn where_entity(mut self, entity_type: Option<&str>, entity_id: Option<&str>) -> Self {
         if let (Some(et), Some(eid)) = (entity_type, entity_id) {
             let p1 = self.next_param();
@@ -132,6 +132,20 @@ impl SelectBuilder {
             self.params.push(ParamValue::Text(et.to_string()));
             self.params.push(ParamValue::Text(eid.to_string()));
         }
+        self
+    }
+
+    /// Filter by entity using JSONB `@>` on the embedded `_entity_refs` array.
+    ///
+    /// No JOIN required — queries the `payload` column directly with GIN index
+    /// support. The payload contains `{"_entity_refs": [{"type":"T","id":"I"}]}`.
+    pub fn where_entity_jsonb(mut self, entity_type: &str, entity_id: &str) -> Self {
+        let p = self.next_param();
+        self.conditions
+            .push(format!("e.payload->'_entity_refs' @> ${p}::jsonb"));
+        let ref_json = serde_json::json!([{ "type": entity_type, "id": entity_id }]);
+        self.params
+            .push(ParamValue::Text(ref_json.to_string()));
         self
     }
 

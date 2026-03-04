@@ -16,18 +16,12 @@ use chronicle_core::query::*;
 
 const TEST_DB_URL: &str = "postgres://chronicle:chronicle@localhost:5433/chronicle";
 
-/// Each test uses a unique org_id so tests don't interfere.
-/// Migrations are assumed to already be applied (run once manually or
-/// by a previous test invocation).
 async fn backend() -> PostgresBackend {
     let backend = PostgresBackend::new(TEST_DB_URL).await
         .expect("Failed to connect to test Postgres. Is it running on port 5433?");
-    // Migrations are idempotent -- safe to call multiple times
     let _ = backend.run_migrations().await;
     backend
 }
-
-// Use unique org_id per test to avoid cross-test interference.
 
 #[tokio::test]
 async fn pg_trait_suite_events() {
