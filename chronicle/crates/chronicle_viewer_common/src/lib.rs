@@ -2,25 +2,36 @@
 // entity types, and JSON syntax highlighting -- not using rerun design_tokens.
 #![allow(clippy::disallowed_methods)]
 
-//! Shared viewer widgets for Chronicle event data.
+//! Shared viewer widgets and filter state for Chronicle event data.
 //!
-//! Reusable egui components for displaying events, entity refs, links,
-//! and JSON payloads. Used by the Rerun selection panel integration
-//! and any future Chronicle UI.
+//! # Widgets
 //!
-//! # DRY
+//! - [`EventEnvelopeWidget`] — displays event envelope fields (source, type, time)
+//! - [`EntityRefChips`] — renders entity references as colored chips
+//! - [`LinksList`] — displays causal links with direction and confidence
+//! - [`PayloadJsonWidget`] — syntax-highlighted JSON payload viewer
 //!
-//! - `format_event_summary` is the canonical one-line event formatter
-//! - `link_type_color` matches the time panel link overlay colors
-//! - All widgets handle None/empty gracefully (no panics on missing data)
+//! # Filter State
+//!
+//! [`ChronicleFilterState`] manages 8-dimension filters (entity, source,
+//! event type, topic, payload text, payload field, link type, time range)
+//! with `discover()`, `matches_path()`, `matches_payload()`, and
+//! `build_query()` to produce a [`chronicle_core::query::StructuredQuery`].
+//!
+//! # Shared Utilities
+//!
+//! - [`format_event_summary`] — canonical one-line event formatter (used by bridge + widgets)
+//! - [`link_type_color`] — color palette matching the time panel link overlay
 
 mod entity_ref_chips;
 mod event_envelope;
+pub mod filter_state;
 mod links_list;
 mod payload_json;
 
 pub use entity_ref_chips::EntityRefChips;
 pub use event_envelope::EventEnvelopeWidget;
+pub use filter_state::{ChronicleFilterState, FieldFilter};
 pub use links_list::{LinkDisplay, LinksList};
 pub use payload_json::PayloadJsonWidget;
 

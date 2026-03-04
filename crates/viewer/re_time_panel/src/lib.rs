@@ -5,6 +5,7 @@
 
 #![warn(clippy::iter_over_hash_type)] //  TODO(#6198): enable everywhere
 
+mod chronicle_filter;
 mod data_density_graph;
 mod link_overlay;
 mod paint_ticks;
@@ -16,6 +17,7 @@ mod time_panel;
 mod time_ranges_ui;
 mod time_selection_ui;
 
+pub use chronicle_filter::ChronicleFilter;
 pub use link_overlay::{LinkOverlayState, ResolvedLink, RowPositions};
 pub use time_panel::TimePanel;
 #[cfg(feature = "testing")]

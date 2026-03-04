@@ -28,6 +28,7 @@ use re_viewer_context::{
 };
 use re_viewport_blueprint::ViewportBlueprint;
 
+use crate::chronicle_filter::ChronicleFilter;
 use crate::link_overlay::{LinkOverlayState, RowPositions};
 use crate::recursive_chunks_per_timeline_subscriber::PathRecursiveChunksPerTimelineStoreSubscriber;
 use crate::streams_tree_data::{EntityData, StreamsTreeData, components_for_entity};
@@ -149,6 +150,10 @@ pub struct TimePanel {
     #[serde(skip)]
     hovered_event_time: Option<TimeInt>,
 
+    /// Chronicle source filter (chip bar above the streams tree).
+    #[serde(skip)]
+    pub chronicle_filter: ChronicleFilter,
+
     /// Link overlay state for Chronicle causal arcs.
     #[serde(skip)]
     pub link_overlay: LinkOverlayState,
@@ -180,6 +185,7 @@ impl Default for TimePanel {
             scroll_to_me_item: None,
             time_edit_string: None,
             hovered_event_time: None,
+            chronicle_filter: Default::default(),
             link_overlay: Default::default(),
             row_positions: Default::default(),
             time_area_x_range: (0.0, 0.0),
@@ -241,6 +247,10 @@ impl TimePanel {
         self.data_density_graph_painter.begin_frame(ui.ctx());
         self.hovered_event_time = None;
         self.row_positions.clear();
+
+        self.chronicle_filter.discover(
+            entity_db.sorted_entity_paths().map(|p| p.to_string()),
+        );
 
         let mut time_commands = Vec::new();
 
@@ -582,6 +592,8 @@ impl TimePanel {
                         })
                         .strong(),
                     );
+
+                    self.chronicle_filter.ui(ui);
                 });
             })
             .response
@@ -758,7 +770,16 @@ impl TimePanel {
                         &filter_matcher,
                     );
 
+                let filter_tokens: Vec<crate::chronicle_filter::FilterToken> =
+                    self.chronicle_filter.tokens().to_vec();
                 for child in &streams_tree_data.children {
+                    if !filter_tokens.is_empty() {
+                        let path_str = child.entity_path.to_string();
+                        if !path_matches_tokens(&path_str, &filter_tokens) {
+                            continue;
+                        }
+                    }
+
                     self.show_entity(
                         ctx,
                         time_ctrl,
@@ -2164,6 +2185,26 @@ impl TimePanel {
             }
         };
     }
+}
+
+/// Check if a path matches the Source/EventType filter tokens (borrow-friendly
+/// helper that avoids holding a reference to `self` during `show_entity`).
+fn path_matches_tokens(path: &str, tokens: &[crate::chronicle_filter::FilterToken]) -> bool {
+    use crate::chronicle_filter::FilterField;
+
+    let clean = path.strip_prefix('/').unwrap_or(path);
+    let mut parts = clean.splitn(2, '/');
+    let source = parts.next().unwrap_or("");
+    let event_type = parts.next().unwrap_or("");
+
+    for token in tokens {
+        match token.field {
+            FilterField::Source if source != token.value => return false,
+            FilterField::EventType if event_type != token.value => return false,
+            _ => {}
+        }
+    }
+    true
 }
 
 #[test]

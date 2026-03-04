@@ -560,8 +560,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // -- Open Rerun viewer & send data ------------------------------------------
+    // Use connect() to talk to a locally-built viewer, fall back to spawn().
+    // Start viewer first: cargo run -p rerun-cli --no-default-features --features release_no_web_viewer
 
-    let bridge = ChronicleBridge::new(engine.clone(), "Chronicle Demo")?;
+    let bridge = ChronicleBridge::connect(engine.clone(), "Chronicle Demo")
+        .or_else(|_| {
+            eprintln!("Could not connect to a running viewer, spawning one…");
+            ChronicleBridge::new(engine.clone(), "Chronicle Demo")
+        })?;
 
     let query = StructuredQuery {
         org_id: OrgId::new("demo_org"),

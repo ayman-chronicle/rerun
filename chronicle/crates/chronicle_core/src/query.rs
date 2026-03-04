@@ -72,7 +72,7 @@ pub struct PayloadFilter {
 }
 
 /// Comparison operators for payload filters.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOp {
     Eq(serde_json::Value),

@@ -395,6 +395,7 @@ mod tests {
         assert_eq!(normalize("foo/Hallå Där!"), r#"/foo/Hallå\ Där\!"#);
     }
 
+
     #[test]
     fn test_parse_entity_path_strict() {
         use crate::entity_path_vec;

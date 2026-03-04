@@ -313,12 +313,6 @@ impl AppState {
                     );
                 }
 
-                populate_chronicle_link_overlay(
-                    selection_state,
-                    store_context.recording,
-                    time_panel,
-                );
-
                 // The root container cannot be dragged.
                 let drag_and_drop_manager =
                     DragAndDropManager::new(Item::Container(viewport_ui.blueprint.root_container));
@@ -339,6 +333,15 @@ impl AppState {
                 let time_ctrl =
                     create_time_control_for(time_controls, recording, &app_blueprint_ctx);
                 let active_timeline = time_ctrl.timeline();
+
+                if let Some(tl) = active_timeline {
+                    populate_chronicle_link_overlay(
+                        selection_state,
+                        store_context.recording,
+                        time_panel,
+                        tl,
+                    );
+                }
 
                 // Execute the queries for every `View`
                 let query_results = {
@@ -953,40 +956,72 @@ pub fn default_blueprint_panel_width(screen_width: f32) -> f32 {
     (0.35 * screen_width).min(200.0).round()
 }
 
-/// Populate the Chronicle link overlay from real `_links/` entity paths in the
+/// Check whether two Chronicle entity paths share the same source (first segment).
+///
+/// Paths like `support/ticket.closed` and `support/ticket.created` share
+/// source `support`, so clicking on any support entity shows all support links.
+fn same_source(a: &str, b: &str) -> bool {
+    let a_src = a.split('/').next().unwrap_or("");
+    let b_src = b.split('/').next().unwrap_or("");
+    !a_src.is_empty() && a_src == b_src
+}
+
+/// Find the Y coordinate of the closest visible row for a given entity path.
+///
+/// Matches by shared source: `billing/invoice.overdue` matches any visible
+/// `/billing*` row. Prefers exact/descendant match, falls back to same-source.
+fn find_row_y(row_positions: &re_time_panel::RowPositions, path: &str) -> Option<f32> {
+    let exact = row_positions.iter().find(|(p, _)| {
+        let c = p.strip_prefix('/').unwrap_or(p);
+        c == path || c.starts_with(&format!("{path}/")) || path.starts_with(&format!("{c}/"))
+    });
+    if let Some((_, y)) = exact {
+        return Some(*y);
+    }
+    row_positions
+        .iter()
+        .find(|(p, _)| {
+            let c = p.strip_prefix('/').unwrap_or(p);
+            same_source(c, path)
+        })
+        .map(|(_, y)| *y)
+}
+
+/// Populate the Chronicle link overlay from `_links/` entity paths in the
 /// recording store.
 ///
-/// The bridge logs links at entity paths with the convention:
+/// The bridge encodes link metadata in entity paths:
 ///   `_links/{src_source}/{src_type}/{src_epoch}/to/{tgt_source}/{tgt_type}/{tgt_epoch}/{link_type}`
 ///
-/// The epoch seconds are converted to screen X via `time_panel.x_from_time()`
-/// so arcs connect at the actual event positions on the timeline.
+/// Only active on the `event_time` timeline (link epochs are event_time
+/// timestamps; other timelines would produce incorrect X coordinates).
 fn populate_chronicle_link_overlay(
     selection_state: &ApplicationSelectionState,
     recording: &EntityDb,
     time_panel: &mut re_time_panel::TimePanel,
+    active_timeline: &re_log_types::Timeline,
 ) {
     time_panel.link_overlay.clear();
 
-    let selected_path: re_log_types::EntityPath = {
-        let found = selection_state
-            .selected_items()
-            .iter_items()
-            .filter_map(|item| match item {
-                Item::InstancePath(ip) => Some(ip.entity_path.clone()),
-                _ => None,
-            })
-            .next();
-        match found {
-            Some(p) => p,
-            None => return,
-        }
+    if active_timeline.name().as_str() != "event_time" {
+        return;
+    }
+
+    let Some(selected_path) = selection_state
+        .selected_items()
+        .iter_items()
+        .find_map(|item| match item {
+            Item::InstancePath(ip) => Some(ip.entity_path.clone()),
+            _ => None,
+        })
+    else {
+        return;
     };
 
     let path_str = selected_path.to_string();
     let clean_path = path_str.strip_prefix('/').unwrap_or(&path_str);
 
-    if !clean_path.contains('/')
+    if clean_path.is_empty()
         || clean_path.contains("payload")
         || clean_path.starts_with("_links")
     {
@@ -1004,56 +1039,44 @@ fn populate_chronicle_link_overlay(
         let ep_str = entity_path.to_string();
         let ep_clean = ep_str.strip_prefix('/').unwrap_or(&ep_str);
 
-        let remainder = match ep_clean.strip_prefix("_links/") {
-            Some(r) => r,
-            None => continue,
+        let Some(remainder) = ep_clean.strip_prefix("_links/") else {
+            continue;
         };
 
-        // Parse: {src_source}/{src_type}/{src_epoch}/to/{tgt_source}/{tgt_type}/{tgt_epoch}/{link_type}
         let parts: Vec<&str> = remainder.split('/').collect();
         if parts.len() < 8 || parts[3] != "to" {
             continue;
         }
 
         let src_path = format!("{}/{}", parts[0], parts[1]);
-        let src_epoch: f64 = match parts[2].parse() {
-            Ok(v) => v,
-            Err(_) => continue,
+        let Ok(src_epoch) = parts[2].parse::<f64>() else {
+            continue;
         };
         let tgt_path = format!("{}/{}", parts[4], parts[5]);
-        let tgt_epoch: f64 = match parts[6].parse() {
-            Ok(v) => v,
-            Err(_) => continue,
+        let Ok(tgt_epoch) = parts[6].parse::<f64>() else {
+            continue;
         };
         let link_type = parts[7];
 
-        if clean_path != src_path && clean_path != tgt_path {
+        if !same_source(clean_path, &src_path) && !same_source(clean_path, &tgt_path) {
             continue;
         }
 
-        let src_y = row_positions
-            .iter()
-            .find(|(p, _)| {
-                let p_clean = p.strip_prefix('/').unwrap_or(p);
-                p_clean == src_path || p_clean.starts_with(&format!("{src_path}/"))
-            })
-            .map(|(_, y)| *y);
+        let cf = &time_panel.chronicle_filter;
+        if cf.is_active()
+            && (!cf.matches_path(&src_path) || !cf.matches_path(&tgt_path))
+        {
+            continue;
+        }
 
-        let tgt_y = row_positions
-            .iter()
-            .find(|(p, _)| {
-                let p_clean = p.strip_prefix('/').unwrap_or(p);
-                p_clean == tgt_path || p_clean.starts_with(&format!("{tgt_path}/"))
-            })
-            .map(|(_, y)| *y);
+        let src_y = find_row_y(row_positions, &src_path);
+        let tgt_y = find_row_y(row_positions, &tgt_path);
 
         if let (Some(src_y), Some(tgt_y)) = (src_y, tgt_y) {
-            // Convert epoch seconds to nanoseconds (Rerun stores TimestampNs internally)
-            let src_nanos = (src_epoch * 1e9) as i64;
-            let tgt_nanos = (tgt_epoch * 1e9) as i64;
-
-            let src_x = time_panel.x_from_time(re_log_types::TimeReal::from(src_nanos));
-            let tgt_x = time_panel.x_from_time(re_log_types::TimeReal::from(tgt_nanos));
+            let src_x = time_panel
+                .x_from_time(re_log_types::TimeReal::from((src_epoch * 1e9) as i64));
+            let tgt_x = time_panel
+                .x_from_time(re_log_types::TimeReal::from((tgt_epoch * 1e9) as i64));
 
             if let (Some(sx), Some(tx)) = (src_x, tgt_x) {
                 links.push(re_time_panel::ResolvedLink {
@@ -1061,7 +1084,7 @@ fn populate_chronicle_link_overlay(
                     source_y: src_y,
                     target_x: tx,
                     target_y: tgt_y,
-                    link_type: link_type.to_string(),
+                    link_type: link_type.to_owned(),
                     confidence: 0.85,
                 });
             }

@@ -22,7 +22,7 @@
 mod formatting;
 
 use chronicle_core::error::StoreError;
-use chronicle_core::event::Event;
+use chronicle_core::event::{Event, PendingEntityRef};
 use chronicle_core::link::EventLink;
 use chronicle_core::query::{EventResult, StructuredQuery, TimelineQuery};
 use chronicle_store::StorageEngine;
@@ -36,11 +36,23 @@ pub struct ChronicleBridge {
 }
 
 impl ChronicleBridge {
-    /// Create a bridge with a new Rerun recording.
+    /// Create a bridge that spawns a new Rerun viewer process.
     pub fn new(engine: StorageEngine, app_id: &str) -> Result<Self, StoreError> {
         let rec = rerun::RecordingStreamBuilder::new(app_id)
             .spawn()
             .map_err(|e| StoreError::Internal(format!("Rerun spawn: {e}")))?;
+
+        Ok(Self { engine, rec })
+    }
+
+    /// Create a bridge that connects to an already-running Rerun viewer via gRPC.
+    ///
+    /// Start the viewer first with `cargo run -p rerun-cli --no-default-features
+    /// --features release_no_web_viewer`, then call this to send data to it.
+    pub fn connect(engine: StorageEngine, app_id: &str) -> Result<Self, StoreError> {
+        let rec = rerun::RecordingStreamBuilder::new(app_id)
+            .connect_grpc()
+            .map_err(|e| StoreError::Internal(format!("Rerun connect: {e}")))?;
 
         Ok(Self { engine, rec })
     }
@@ -134,10 +146,11 @@ impl ChronicleBridge {
 
             chronicle_event = chronicle_event.with_topic(r.event.topic.as_str());
 
-            if let Some(ref payload) = r.event.payload {
-                let json_str = serde_json::to_string(payload).unwrap_or_default();
-                chronicle_event = chronicle_event.with_payload(json_str.as_str());
-            }
+            let payload_json = Self::build_payload_with_entities(
+                r.event.payload.as_ref(),
+                &r.event.entity_refs,
+            );
+            chronicle_event = chronicle_event.with_payload(payload_json.as_str());
 
             let summary = format_event_summary(&r.event);
             chronicle_event = chronicle_event.with_label(summary);
@@ -146,19 +159,71 @@ impl ChronicleBridge {
                 tracing::warn!("Failed to log event: {e}");
             }
 
-            if let Some(ref payload) = r.event.payload {
-                let json = serde_json::to_string_pretty(payload).unwrap_or_default();
-                let detail_path = format!("{path}/payload");
-                if let Err(e) = self.rec.log(
-                    detail_path.as_str(),
-                    &rerun::archetypes::TextDocument::new(json)
-                        .with_media_type("application/json"),
+            let detail_path = format!("{path}/payload");
+            if let Err(e) = self.rec.log(
+                detail_path.as_str(),
+                &rerun::archetypes::TextDocument::new(
+                    serde_json::to_string_pretty(
+                        &serde_json::from_str::<serde_json::Value>(&payload_json)
+                            .unwrap_or_default(),
+                    )
+                    .unwrap_or_default(),
+                )
+                .with_media_type("application/json"),
+            ) {
+                tracing::warn!("Failed to log payload: {e}");
+            }
+
+            for er in &r.event.entity_refs {
+                let entity_path =
+                    format!("_entities/{}/{}", er.entity_type.as_str(), er.entity_id.as_str());
+                if let Err(e) = self.rec.log_static(
+                    entity_path.as_str(),
+                    &rerun::archetypes::ChronicleEntityRef::new(
+                        er.entity_type.as_str(),
+                        er.entity_id.as_str(),
+                    ),
                 ) {
-                    tracing::warn!("Failed to log payload: {e}");
+                    tracing::warn!("Failed to log entity ref: {e}");
                 }
             }
         }
         Ok(())
+    }
+
+    /// Merge entity refs into the payload JSON under `_entity_refs`.
+    ///
+    /// Preserves the original payload fields and adds an array of
+    /// `{ "type": "customer", "id": "cust_001" }` objects so the viewer
+    /// can discover and filter by entity without a separate query.
+    fn build_payload_with_entities(
+        payload: Option<&serde_json::Value>,
+        entity_refs: &[PendingEntityRef],
+    ) -> String {
+        let mut obj = match payload {
+            Some(serde_json::Value::Object(m)) => m.clone(),
+            Some(other) => {
+                let mut m = serde_json::Map::new();
+                m.insert("_value".to_owned(), other.clone());
+                m
+            }
+            None => serde_json::Map::new(),
+        };
+
+        if !entity_refs.is_empty() {
+            let refs: Vec<serde_json::Value> = entity_refs
+                .iter()
+                .map(|er| {
+                    serde_json::json!({
+                        "type": er.entity_type.as_str(),
+                        "id": er.entity_id.as_str(),
+                    })
+                })
+                .collect();
+            obj.insert("_entity_refs".to_owned(), serde_json::Value::Array(refs));
+        }
+
+        serde_json::to_string(&serde_json::Value::Object(obj)).unwrap_or_default()
     }
 
     /// Log events and their links together into the Rerun viewer.
@@ -327,5 +392,59 @@ mod tests {
         let summary = format_event_summary(&event);
         assert!(summary.contains("charge.created"));
         assert!(summary.contains("amount"));
+    }
+
+    #[test]
+    fn build_payload_embeds_entity_refs() {
+        let event = EventBuilder::new("org", "stripe", "pay", "charge.created")
+            .entity("customer", "cust_001")
+            .entity("account", "acc_42")
+            .payload(serde_json::json!({"amount": 4999}))
+            .build();
+
+        let json = ChronicleBridge::build_payload_with_entities(
+            event.payload.as_ref(),
+            &event.entity_refs,
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["amount"], 4999);
+        let refs = parsed["_entity_refs"].as_array().unwrap();
+        assert_eq!(refs.len(), 2);
+        assert_eq!(refs[0]["type"], "customer");
+        assert_eq!(refs[0]["id"], "cust_001");
+        assert_eq!(refs[1]["type"], "account");
+        assert_eq!(refs[1]["id"], "acc_42");
+    }
+
+    #[test]
+    fn build_payload_without_entity_refs() {
+        let event = EventBuilder::new("org", "stripe", "pay", "charge.created")
+            .payload(serde_json::json!({"amount": 100}))
+            .build();
+
+        let json = ChronicleBridge::build_payload_with_entities(
+            event.payload.as_ref(),
+            &event.entity_refs,
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["amount"], 100);
+        assert!(parsed.get("_entity_refs").is_none());
+    }
+
+    #[test]
+    fn build_payload_without_payload() {
+        let refs = vec![
+            PendingEntityRef {
+                entity_type: chronicle_core::ids::EntityType::new("customer"),
+                entity_id: chronicle_core::ids::EntityId::new("cust_1"),
+            },
+        ];
+
+        let json = ChronicleBridge::build_payload_with_entities(None, &refs);
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["_entity_refs"][0]["type"], "customer");
     }
 }
