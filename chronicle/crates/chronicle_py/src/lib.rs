@@ -486,36 +486,74 @@ impl Chronicle {
     /// timeline = ch.timeline("customer", "cus_042")  # includes the event
     /// ```
     fn ingest_stripe(&self, webhook_json: &str) -> PyResult<String> {
-        let event = chronicle_stripe::convert_webhook(webhook_json, &self.org_id)
-            .map_err(|e| PyValueError::new_err(format!("Stripe conversion: {e}")))?;
-
-        let event_id = event.event_id;
-
-        self.runtime
-            .block_on(self.engine.events.insert_events(&[event]))
-            .map_err(|e| PyValueError::new_err(format!("Insert failed: {e}")))?;
-
-        Ok(event_id.to_string())
+        self.ingest_inner(webhook_json, |json, org| chronicle_stripe::convert_webhook(json, org))
     }
 
     /// Batch-ingest multiple Stripe webhook JSON bodies.
-    ///
-    /// Returns a list of event IDs. Failed conversions are skipped
-    /// with a warning (partial success).
     fn ingest_stripe_batch(&self, webhook_jsons: Vec<String>) -> PyResult<Vec<String>> {
-        let mut events = Vec::with_capacity(webhook_jsons.len());
-        for json in &webhook_jsons {
-            match chronicle_stripe::convert_webhook(json, &self.org_id) {
+        self.ingest_batch_inner(webhook_jsons, |json, org| chronicle_stripe::convert_webhook(json, org))
+    }
+
+    /// Ingest a raw Gorgias webhook JSON body. Returns the event ID.
+    ///
+    /// ```python
+    /// event_id = ch.ingest_gorgias(webhook_json_string)
+    /// ```
+    fn ingest_gorgias(&self, webhook_json: &str) -> PyResult<String> {
+        self.ingest_inner(webhook_json, |json, org| chronicle_gorgias::convert_webhook(json, org))
+    }
+
+    /// Batch-ingest multiple Gorgias webhook JSON bodies.
+    fn ingest_gorgias_batch(&self, webhook_jsons: Vec<String>) -> PyResult<Vec<String>> {
+        self.ingest_batch_inner(webhook_jsons, |json, org| chronicle_gorgias::convert_webhook(json, org))
+    }
+
+    /// Generic ingest: route to the right connector by source name.
+    ///
+    /// ```python
+    /// event_id = ch.ingest("stripe", webhook_json)
+    /// event_id = ch.ingest("gorgias", webhook_json)
+    /// ```
+    fn ingest(&self, source: &str, webhook_json: &str) -> PyResult<String> {
+        match source {
+            "stripe" => self.ingest_stripe(webhook_json),
+            "gorgias" => self.ingest_gorgias(webhook_json),
+            _ => Err(PyValueError::new_err(format!("Unknown source: {source}. Supported: stripe, gorgias"))),
+        }
+    }
+}
+
+impl Chronicle {
+    fn ingest_inner(
+        &self,
+        json: &str,
+        convert: impl Fn(&str, &str) -> Result<chronicle_core::event::Event, chronicle_core::connector::ConnectorError>,
+    ) -> PyResult<String> {
+        let event = convert(json, &self.org_id)
+            .map_err(|e| PyValueError::new_err(format!("Conversion failed: {e}")))?;
+        let event_id = event.event_id;
+        self.runtime
+            .block_on(self.engine.events.insert_events(&[event]))
+            .map_err(|e| PyValueError::new_err(format!("Insert failed: {e}")))?;
+        Ok(event_id.to_string())
+    }
+
+    fn ingest_batch_inner(
+        &self,
+        jsons: Vec<String>,
+        convert: impl Fn(&str, &str) -> Result<chronicle_core::event::Event, chronicle_core::connector::ConnectorError>,
+    ) -> PyResult<Vec<String>> {
+        let mut events = Vec::with_capacity(jsons.len());
+        for json in &jsons {
+            match convert(json, &self.org_id) {
                 Ok(event) => events.push(event),
-                Err(e) => eprintln!("Skipping invalid Stripe webhook: {e}"),
+                Err(e) => eprintln!("Skipping invalid webhook: {e}"),
             }
         }
-
         let ids = self
             .runtime
             .block_on(self.engine.events.insert_events(&events))
             .map_err(|e| PyValueError::new_err(format!("Insert failed: {e}")))?;
-
         Ok(ids.iter().map(|id| id.to_string()).collect())
     }
 }

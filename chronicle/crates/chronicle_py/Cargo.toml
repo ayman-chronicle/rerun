@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 [dependencies]
 chronicle_core = { path = "../chronicle_core" }
 chronicle_store = { path = "../chronicle_store", features = ["arrow-export"] }
+chronicle_gorgias = { path = "../chronicle_gorgias" }
 chronicle_stripe = { path = "../chronicle_stripe" }
 chronicle_query = { path = "../chronicle_query" }
 chronicle_link = { path = "../chronicle_link" }

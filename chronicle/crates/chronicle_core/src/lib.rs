@@ -19,6 +19,7 @@
 //! - [`error`]: Shared error types
 //! - [`time_range`]: Time range arithmetic
 
+pub mod connector;
 pub mod entity_ref;
 pub mod error;
 pub mod event;
@@ -28,6 +29,7 @@ pub mod media;
 pub mod query;
 pub mod time_range;
 
+pub use connector::{ConnectorError, SaasConnector};
 pub use entity_ref::EntityRef;
 pub use error::ChronicleError;
 pub use event::Event;

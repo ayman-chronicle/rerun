@@ -967,6 +967,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "chronicle_gorgias"
+version = "0.1.0"
+dependencies = [
+ "chronicle_core",
+ "chrono",
+ "serde_json",
+]
+
+[[package]]
 name = "chronicle_ingest"
 version = "0.1.0"
 dependencies = [
@@ -1012,6 +1021,7 @@ dependencies = [
  "async-trait",
  "chronicle_core",
  "chronicle_embed",
+ "chronicle_gorgias",
  "chronicle_ingest",
  "chronicle_link",
  "chronicle_query",
@@ -1118,9 +1128,7 @@ version = "0.1.0"
 dependencies = [
  "chronicle_core",
  "chrono",
- "serde",
  "serde_json",
- "thiserror 2.0.18",
 ]
 
 [[package]]
