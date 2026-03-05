@@ -176,8 +176,9 @@ impl Chronicle {
     fn add_entity_ref(&self, event_id: &str, entity_type: &str, entity_id: &str) -> PyResult<()> {
         let eid: EventId = event_id.parse()
             .map_err(|_| PyValueError::new_err("Invalid event_id"))?;
+        let org = OrgId::new(&self.org_id);
 
-        self.runtime.block_on(self.link.add_entity_ref(eid, entity_type, entity_id, "python_sdk"))
+        self.runtime.block_on(self.link.add_entity_ref(&org, eid, entity_type, entity_id, "python_sdk"))
             .map_err(|e| PyValueError::new_err(format!("{e}")))?;
         Ok(())
     }
@@ -226,7 +227,8 @@ impl Chronicle {
             created_at: chrono::Utc::now(),
         };
 
-        let id = self.runtime.block_on(self.link.create_link(&link))
+        let org = OrgId::new(&self.org_id);
+        let id = self.runtime.block_on(self.link.create_link(&org, &link))
             .map_err(|e| PyValueError::new_err(format!("{e}")))?;
         Ok(id.to_string())
     }

@@ -157,8 +157,8 @@ mod link_tests {
         // Chain: A -> B -> C
         let link_ab = factories::causal_link(id_a, id_b, 0.9);
         let link_bc = factories::causal_link(id_b, id_c, 0.85);
-        backend.create_link(&link_ab).await.unwrap();
-        backend.create_link(&link_bc).await.unwrap();
+        backend.create_link(&OrgId::new("org_1"), &link_ab).await.unwrap();
+        backend.create_link(&OrgId::new("org_1"), &link_bc).await.unwrap();
 
         // Traverse from C incoming, depth 5
         let query = GraphQuery {
@@ -188,8 +188,8 @@ mod link_tests {
 
         backend.insert_events(&[evt_a, evt_b, evt_c]).await.unwrap();
 
-        backend.create_link(&factories::causal_link(id_a, id_b, 0.9)).await.unwrap();
-        backend.create_link(&factories::causal_link(id_b, id_c, 0.9)).await.unwrap();
+        backend.create_link(&OrgId::new("org_1"), &factories::causal_link(id_a, id_b, 0.9)).await.unwrap();
+        backend.create_link(&OrgId::new("org_1"), &factories::causal_link(id_b, id_c, 0.9)).await.unwrap();
 
         // Depth 1: should only find C and B (one hop)
         let query = GraphQuery {
@@ -216,7 +216,7 @@ mod link_tests {
         let id_b = evt_b.event_id;
 
         backend.insert_events(&[evt_a, evt_b]).await.unwrap();
-        backend.create_link(&factories::causal_link(id_a, id_b, 0.3)).await.unwrap();
+        backend.create_link(&OrgId::new("org_1"), &factories::causal_link(id_a, id_b, 0.3)).await.unwrap();
 
         let query = GraphQuery {
             org_id: OrgId::new("org_1"),

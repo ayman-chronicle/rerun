@@ -50,7 +50,7 @@ impl EmbedService {
             let already_embedded = self
                 .engine
                 .embeddings
-                .has_embedding(&event.event_id)
+                .has_embedding(&event.org_id, &event.event_id)
                 .await?;
             if already_embedded {
                 continue;

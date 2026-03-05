@@ -99,9 +99,9 @@ impl QueryService {
         Ok(self.engine.entity_refs.list_entities(org_id, entity_type, limit).await?)
     }
 
-    /// Get entity refs for a specific event.
-    pub async fn get_entity_refs(&self, event_id: &EventId) -> Result<Vec<chronicle_core::EntityRef>, ChronicleError> {
-        Ok(self.engine.entity_refs.get_refs_for_event(event_id).await?)
+    /// Get entity refs for a specific event, scoped to an org.
+    pub async fn get_entity_refs(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<chronicle_core::EntityRef>, ChronicleError> {
+        Ok(self.engine.entity_refs.get_refs_for_event(org_id, event_id).await?)
     }
 }
 
@@ -193,7 +193,7 @@ mod tests {
 
         svc.engine.events.insert_events(&[evt_a, evt_b]).await.unwrap();
         let link = factories::causal_link(id_a, id_b, 0.9);
-        svc.engine.links.create_link(&link).await.unwrap();
+        svc.engine.links.create_link(&OrgId::new("org_1"), &link).await.unwrap();
 
         let query = GraphQuery {
             org_id: OrgId::new("org_1"),

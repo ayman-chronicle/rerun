@@ -35,14 +35,12 @@ impl EmbeddingStore for PostgresBackend {
     }
 
     async fn search(&self, _query: &SemanticQuery) -> Result<Vec<EventResult>, StoreError> {
-        // Full vector search requires pgvector extension.
-        // This placeholder returns empty results.
-        // Production: use <-> operator with HNSW index.
         Ok(vec![])
     }
 
-    async fn has_embedding(&self, event_id: &EventId) -> Result<bool, StoreError> {
-        let row = sqlx::query("SELECT 1 FROM event_embeddings WHERE event_id = $1")
+    async fn has_embedding(&self, org_id: &OrgId, event_id: &EventId) -> Result<bool, StoreError> {
+        let row = sqlx::query("SELECT 1 FROM event_embeddings WHERE org_id = $1 AND event_id = $2")
+            .bind(org_id.as_str())
             .bind(event_id.to_string())
             .fetch_optional(&self.pool)
             .await

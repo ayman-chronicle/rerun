@@ -223,7 +223,7 @@ async fn golden_4_graph_traversal() {
     // Chain links: 1->2->3->4->5
     for pair in ids.windows(2) {
         let l = factories::causal_link(pair[0], pair[1], 0.85);
-        link.create_link(&l).await.unwrap();
+        link.create_link(&OrgId::new("org_1"), &l).await.unwrap();
     }
 
     // Traverse from cancellation (last event) backwards
@@ -277,7 +277,7 @@ async fn golden_5_embedding_pipeline() {
 
     // Verify embeddings are stored
     for event in &events {
-        let has = engine.embeddings.has_embedding(&event.event_id).await.unwrap();
+        let has = engine.embeddings.has_embedding(&event.org_id, &event.event_id).await.unwrap();
         assert!(has, "Every event should have an embedding stored");
     }
 }
@@ -443,8 +443,8 @@ async fn golden_8_multimodal_media() {
     engine.events.insert_events(&[call.clone(), transcript.clone(), analysis.clone()]).await.unwrap();
 
     // Link: call -> transcript -> analysis
-    link.create_link(&factories::causal_link(call_id, transcript_id, 0.95)).await.unwrap();
-    link.create_link(&factories::causal_link(transcript_id, analysis_id, 0.95)).await.unwrap();
+    link.create_link(&OrgId::new("org_1"), &factories::causal_link(call_id, transcript_id, 0.95)).await.unwrap();
+    link.create_link(&OrgId::new("org_1"), &factories::causal_link(transcript_id, analysis_id, 0.95)).await.unwrap();
 
     // Verify media is present on the call event
     let call_result = query.get_event(&OrgId::new("org_1"), &call_id).await.unwrap().unwrap();

@@ -165,14 +165,15 @@ pub async fn run_entity_ref_tests(store: &(dyn EntityRefStore + Sync), event_sto
 }
 
 async fn test_add_and_get_refs(store: &(dyn EntityRefStore + Sync), event_store: &dyn EventStore) {
+    let org_id = OrgId::new("test_org");
     let event = factories::stripe_payment("test_org", "cust_ref_1", 1000);
     let event_id = event.event_id;
     event_store.insert_events(&[event.clone()]).await.unwrap();
 
     let refs = event.materialize_entity_refs("test");
-    store.add_refs(&refs).await.expect("add_refs should succeed");
+    store.add_refs(&org_id, &refs).await.expect("add_refs should succeed");
 
-    let retrieved = store.get_refs_for_event(&event_id).await.expect("get should succeed");
+    let retrieved = store.get_refs_for_event(&org_id, &event_id).await.expect("get should succeed");
     assert!(!retrieved.is_empty(), "Should have at least one ref");
     assert_eq!(retrieved[0].entity_type, "customer");
     assert_eq!(retrieved[0].entity_id.as_str(), "cust_ref_1");
@@ -191,11 +192,11 @@ async fn test_get_events_for_entity(store: &(dyn EntityRefStore + Sync), _event_
 }
 
 async fn test_duplicate_ref_is_idempotent(store: &(dyn EntityRefStore + Sync), event_store: &dyn EventStore) {
+    let org_id = OrgId::new("test_org");
     let event = factories::stripe_payment("test_org", "cust_dup", 500);
     event_store.insert_events(&[event.clone()]).await.unwrap();
 
     let refs = event.materialize_entity_refs("test");
-    store.add_refs(&refs).await.unwrap();
-    // Second insert should not error
-    store.add_refs(&refs).await.expect("duplicate add_refs should be idempotent");
+    store.add_refs(&org_id, &refs).await.unwrap();
+    store.add_refs(&org_id, &refs).await.expect("duplicate add_refs should be idempotent");
 }

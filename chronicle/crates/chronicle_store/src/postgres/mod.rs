@@ -56,6 +56,12 @@ impl PostgresBackend {
 
     /// Run database migrations to create/update the schema.
     pub async fn run_migrations(&self) -> Result<(), StoreError> {
+        // Admin mode: disable RLS filtering during migrations.
+        sqlx::raw_sql("SET LOCAL app.current_org_id = ''")
+            .execute(&self.pool)
+            .await
+            .ok();
+
         sqlx::raw_sql(include_str!("../../migrations/001_initial.sql"))
             .execute(&self.pool)
             .await
@@ -66,6 +72,24 @@ impl PostgresBackend {
         .execute(&self.pool)
         .await
         .map_err(|e| StoreError::Migration(e.to_string()))?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/003_row_level_security.sql"
+        ))
+        .execute(&self.pool)
+        .await
+        .map_err(|e| StoreError::Migration(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Set the tenant context for the current connection.
+    ///
+    /// Must be called before any tenant-scoped operation when RLS is
+    /// enabled. The Postgres RLS policies check `app.current_org_id`.
+    pub async fn set_tenant(&self, org_id: &str) -> Result<(), StoreError> {
+        sqlx::query(&format!("SET LOCAL app.current_org_id = '{}'", org_id.replace('\'', "''")))
+            .execute(&self.pool)
+            .await
+            .map_err(|e| StoreError::Internal(e.to_string()))?;
         Ok(())
     }
 }

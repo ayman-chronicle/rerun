@@ -41,8 +41,10 @@ pub mod memory;
 #[cfg(feature = "postgres")]
 pub mod postgres;
 pub mod subscriptions;
+pub mod tenant_guard;
 pub mod traits;
 
 pub use engine::StorageEngine;
 pub use subscriptions::*;
+pub use tenant_guard::TenantGuard;
 pub use traits::*;

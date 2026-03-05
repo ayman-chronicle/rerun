@@ -22,6 +22,7 @@ pub fn routes() -> Router<ServerState> {
 /// Request to add an entity ref to an existing event.
 #[derive(Debug, Deserialize)]
 pub struct AddEntityRefRequest {
+    pub org_id: String,
     pub event_id: String,
     pub entity_type: String,
     pub entity_id: String,
@@ -49,6 +50,7 @@ async fn add_entity_ref(
         })?;
 
     state.link.add_entity_ref(
+        &OrgId::new(&req.org_id),
         event_id,
         req.entity_type.as_str(),
         req.entity_id.as_str(),
@@ -61,6 +63,7 @@ async fn add_entity_ref(
 /// Request to create a link between two events.
 #[derive(Debug, Deserialize)]
 pub struct CreateLinkRequest {
+    pub org_id: String,
     pub source_event_id: String,
     pub target_event_id: String,
     pub link_type: String,
@@ -120,7 +123,7 @@ async fn create_link(
         created_at: Utc::now(),
     };
 
-    let id = state.link.create_link(&link).await?;
+    let id = state.link.create_link(&OrgId::new(&req.org_id), &link).await?;
     Ok(Json(CreateLinkResponse {
         link_id: id.to_string(),
     }))

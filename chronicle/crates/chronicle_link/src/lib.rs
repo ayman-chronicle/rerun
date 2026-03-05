@@ -37,8 +37,8 @@ impl LinkService {
     /// Create a causal/relational link between two events.
     ///
     /// Validates no self-links before persisting.
-    pub async fn create_link(&self, link: &EventLink) -> Result<LinkId, ChronicleError> {
-        Ok(self.engine.links.create_link(link).await?)
+    pub async fn create_link(&self, org_id: &OrgId, link: &EventLink) -> Result<LinkId, ChronicleError> {
+        Ok(self.engine.links.create_link(org_id, link).await?)
     }
 
     /// Add an entity ref to an existing event.
@@ -48,13 +48,14 @@ impl LinkService {
     /// known at ingestion time.
     pub async fn add_entity_ref(
         &self,
+        org_id: &OrgId,
         event_id: EventId,
         entity_type: impl Into<EntityType>,
         entity_id: impl Into<EntityId>,
         created_by: &str,
     ) -> Result<(), ChronicleError> {
         let entity_ref = EntityRef::new(event_id, entity_type, entity_id, created_by);
-        Ok(self.engine.entity_refs.add_refs(&[entity_ref]).await?)
+        Ok(self.engine.entity_refs.add_refs(org_id, &[entity_ref]).await?)
     }
 
     /// Propagate entity refs: for every event that references `(from_type, from_id)`,
@@ -91,9 +92,9 @@ impl LinkService {
         Ok(count)
     }
 
-    /// Get all links from/to an event.
-    pub async fn get_links(&self, event_id: &EventId) -> Result<Vec<EventLink>, ChronicleError> {
-        Ok(self.engine.links.get_links_for_event(event_id).await?)
+    /// Get all links from/to an event, scoped to an org.
+    pub async fn get_links(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EventLink>, ChronicleError> {
+        Ok(self.engine.links.get_links_for_event(org_id, event_id).await?)
     }
 
     /// Traverse the link graph from a starting event.
@@ -132,11 +133,11 @@ mod tests {
         let event_id = event.event_id;
         engine.events.insert_events(&[event]).await.unwrap();
 
-        svc.add_entity_ref(event_id, "account", "acc_456", "test_agent")
+        svc.add_entity_ref(&OrgId::new("org_1"), event_id, "account", "acc_456", "test_agent")
             .await
             .unwrap();
 
-        let refs = engine.entity_refs.get_refs_for_event(&event_id).await.unwrap();
+        let refs = engine.entity_refs.get_refs_for_event(&OrgId::new("org_1"), &event_id).await.unwrap();
         let account_ref = refs.iter().find(|r| r.entity_type == "account");
         assert!(account_ref.is_some(), "Should have account ref");
         assert_eq!(account_ref.unwrap().entity_id.as_str(), "acc_456");
@@ -178,9 +179,9 @@ mod tests {
             created_by: "test".to_string(),
             created_at: Utc::now(),
         };
-        svc.create_link(&link).await.unwrap();
+        svc.create_link(&OrgId::new("org_1"), &link).await.unwrap();
 
-        let found = svc.get_links(&id_a).await.unwrap();
+        let found = svc.get_links(&OrgId::new("org_1"), &id_a).await.unwrap();
         assert_eq!(found.len(), 1);
 
         let traversed = svc

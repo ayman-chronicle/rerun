@@ -11,44 +11,49 @@ use super::state::InMemoryBackend;
 
 #[async_trait]
 impl EntityRefStore for InMemoryBackend {
-    async fn add_refs(&self, refs: &[EntityRef]) -> Result<(), StoreError> {
+    async fn add_refs(&self, org_id: &OrgId, refs: &[EntityRef]) -> Result<(), StoreError> {
         let mut store = self.entity_refs.write();
         for r in refs {
-            let already_exists = store.iter().any(|existing| {
-                existing.event_id == r.event_id
+            let already_exists = store.iter().any(|(o, existing)| {
+                *o == *org_id
+                    && existing.event_id == r.event_id
                     && existing.entity_type == r.entity_type
                     && existing.entity_id == r.entity_id
             });
             if !already_exists {
-                store.push(r.clone());
+                store.push((*org_id, r.clone()));
             }
         }
         Ok(())
     }
 
-    async fn get_refs_for_event(&self, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
+    async fn get_refs_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
         let store = self.entity_refs.read();
-        Ok(store.iter().filter(|r| r.event_id == *event_id).cloned().collect())
+        Ok(store
+            .iter()
+            .filter(|(o, r)| *o == *org_id && r.event_id == *event_id)
+            .map(|(_, r)| r.clone())
+            .collect())
     }
 
     async fn get_events_for_entity(
         &self,
-        _org_id: &OrgId,
+        org_id: &OrgId,
         entity_type: &EntityType,
         entity_id: &EntityId,
     ) -> Result<Vec<EventId>, StoreError> {
         let store = self.entity_refs.read();
         let ids: Vec<EventId> = store
             .iter()
-            .filter(|r| r.entity_type == *entity_type && r.entity_id == *entity_id)
-            .map(|r| r.event_id)
+            .filter(|(o, r)| *o == *org_id && r.entity_type == *entity_type && r.entity_id == *entity_id)
+            .map(|(_, r)| r.event_id)
             .collect();
         Ok(ids)
     }
 
     async fn link_entity(
         &self,
-        _org_id: &OrgId,
+        org_id: &OrgId,
         from_type: &EntityType,
         from_id: &EntityId,
         to_type: &EntityType,
@@ -59,8 +64,8 @@ impl EntityRefStore for InMemoryBackend {
             let store = self.entity_refs.read();
             store
                 .iter()
-                .filter(|r| r.entity_type == *from_type && r.entity_id == *from_id)
-                .map(|r| r.event_id)
+                .filter(|(o, r)| *o == *org_id && r.entity_type == *from_type && r.entity_id == *from_id)
+                .map(|(_, r)| r.event_id)
                 .collect()
         };
 
@@ -70,16 +75,18 @@ impl EntityRefStore for InMemoryBackend {
             .collect();
 
         let count = new_refs.len() as u64;
-        self.add_refs(&new_refs).await?;
+        self.add_refs(org_id, &new_refs).await?;
         Ok(count)
     }
 
-    async fn list_entity_types(&self, _org_id: &OrgId) -> Result<Vec<EntityTypeInfo>, StoreError> {
+    async fn list_entity_types(&self, org_id: &OrgId) -> Result<Vec<EntityTypeInfo>, StoreError> {
         let store = self.entity_refs.read();
         let mut type_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
 
-        for r in store.iter() {
-            *type_counts.entry(r.entity_type.as_str().to_string()).or_default() += 1;
+        for (o, r) in store.iter() {
+            if *o == *org_id {
+                *type_counts.entry(r.entity_type.as_str().to_string()).or_default() += 1;
+            }
         }
 
         Ok(type_counts
@@ -95,15 +102,17 @@ impl EntityRefStore for InMemoryBackend {
 
     async fn list_entities(
         &self,
-        _org_id: &OrgId,
+        org_id: &OrgId,
         entity_type: &EntityType,
         limit: usize,
     ) -> Result<Vec<EntityInfo>, StoreError> {
         let store = self.entity_refs.read();
         let mut entity_counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
 
-        for r in store.iter().filter(|r| r.entity_type == *entity_type) {
-            *entity_counts.entry(r.entity_id.as_str().to_string()).or_default() += 1;
+        for (o, r) in store.iter() {
+            if *o == *org_id && r.entity_type == *entity_type {
+                *entity_counts.entry(r.entity_id.as_str().to_string()).or_default() += 1;
+            }
         }
 
         let mut entities: Vec<EntityInfo> = entity_counts

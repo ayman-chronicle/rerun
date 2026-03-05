@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 
 use chronicle_core::error::StoreError;
-use chronicle_core::ids::{EventId, LinkId};
+use chronicle_core::ids::{EventId, LinkId, OrgId};
 use chronicle_core::link::EventLink;
 use chronicle_core::query::{EventResult, GraphQuery};
 use chronicle_core::link::LinkDirection;
@@ -13,19 +13,19 @@ use super::state::InMemoryBackend;
 
 #[async_trait]
 impl EventLinkStore for InMemoryBackend {
-    async fn create_link(&self, link: &EventLink) -> Result<LinkId, StoreError> {
+    async fn create_link(&self, org_id: &OrgId, link: &EventLink) -> Result<LinkId, StoreError> {
         link.validate().map_err(|e| StoreError::Query(e.to_string()))?;
         let mut store = self.links.write();
-        store.insert(link.link_id, link.clone());
+        store.insert(link.link_id, (*org_id, link.clone()));
         Ok(link.link_id)
     }
 
-    async fn get_links_for_event(&self, event_id: &EventId) -> Result<Vec<EventLink>, StoreError> {
+    async fn get_links_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EventLink>, StoreError> {
         let store = self.links.read();
         Ok(store
             .values()
-            .filter(|l| l.source_event_id == *event_id || l.target_event_id == *event_id)
-            .cloned()
+            .filter(|(o, l)| *o == *org_id && (l.source_event_id == *event_id || l.target_event_id == *event_id))
+            .map(|(_, l)| l.clone())
             .collect())
     }
 
@@ -51,7 +51,10 @@ impl EventLinkStore for InMemoryBackend {
                 }
             }
 
-            for link in links.values() {
+            for (o, link) in links.values() {
+                if *o != query.org_id {
+                    continue;
+                }
                 if link.confidence.value() < query.min_confidence {
                     continue;
                 }

@@ -11,12 +11,12 @@ use super::KurrentBackend;
 
 #[async_trait]
 impl EntityRefStore for KurrentBackend {
-    async fn add_refs(&self, refs: &[EntityRef]) -> Result<(), StoreError> {
-        self.pg.add_refs(refs).await
+    async fn add_refs(&self, org_id: &OrgId, refs: &[EntityRef]) -> Result<(), StoreError> {
+        self.pg.add_refs(org_id, refs).await
     }
 
-    async fn get_refs_for_event(&self, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
-        self.pg.get_refs_for_event(event_id).await
+    async fn get_refs_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
+        self.pg.get_refs_for_event(org_id, event_id).await
     }
 
     async fn get_events_for_entity(

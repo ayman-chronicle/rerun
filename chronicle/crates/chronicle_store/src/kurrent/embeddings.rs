@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 
 use chronicle_core::error::StoreError;
-use chronicle_core::ids::EventId;
+use chronicle_core::ids::{EventId, OrgId};
 use chronicle_core::query::{EventResult, SemanticQuery};
 
 use crate::traits::{EmbeddingStore, EventEmbedding};
@@ -19,7 +19,7 @@ impl EmbeddingStore for KurrentBackend {
         self.pg.search(query).await
     }
 
-    async fn has_embedding(&self, event_id: &EventId) -> Result<bool, StoreError> {
-        self.pg.has_embedding(event_id).await
+    async fn has_embedding(&self, org_id: &OrgId, event_id: &EventId) -> Result<bool, StoreError> {
+        self.pg.has_embedding(org_id, event_id).await
     }
 }

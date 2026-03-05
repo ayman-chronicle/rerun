@@ -13,7 +13,7 @@ use super::PostgresBackend;
 
 #[async_trait]
 impl EventLinkStore for PostgresBackend {
-    async fn create_link(&self, link: &EventLink) -> Result<LinkId, StoreError> {
+    async fn create_link(&self, org_id: &OrgId, link: &EventLink) -> Result<LinkId, StoreError> {
         link.validate().map_err(|e| StoreError::Query(e.to_string()))?;
 
         sqlx::query(
@@ -22,7 +22,7 @@ impl EventLinkStore for PostgresBackend {
              ON CONFLICT DO NOTHING"
         )
         .bind(link.link_id.to_string())
-        .bind("") // org_id derived from events
+        .bind(org_id.as_str())
         .bind(link.source_event_id.to_string())
         .bind(link.target_event_id.to_string())
         .bind(&link.link_type)
@@ -36,12 +36,13 @@ impl EventLinkStore for PostgresBackend {
         Ok(link.link_id)
     }
 
-    async fn get_links_for_event(&self, event_id: &EventId) -> Result<Vec<EventLink>, StoreError> {
+    async fn get_links_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EventLink>, StoreError> {
         let rows = sqlx::query(
             "SELECT link_id, source_event_id, target_event_id, link_type, confidence, reasoning, created_by, created_at
              FROM event_links
-             WHERE source_event_id = $1 OR target_event_id = $1"
+             WHERE org_id = $1 AND (source_event_id = $2 OR target_event_id = $2)"
         )
+        .bind(org_id.as_str())
         .bind(event_id.to_string())
         .fetch_all(&self.pool)
         .await
@@ -51,8 +52,6 @@ impl EventLinkStore for PostgresBackend {
     }
 
     async fn traverse(&self, query: &GraphQuery) -> Result<Vec<EventResult>, StoreError> {
-        // Use recursive CTE for graph traversal.
-        // Direction determines which side of the link to follow.
         let (link_condition, next_column) = match query.direction {
             LinkDirection::Outgoing => ("source_event_id = chain.event_id", "target_event_id"),
             LinkDirection::Incoming => ("target_event_id = chain.event_id", "source_event_id"),
@@ -68,6 +67,7 @@ impl EventLinkStore for PostgresBackend {
                 JOIN chain ON {link_condition}
                 WHERE chain.depth < $2
                   AND el.confidence >= $3
+                  AND el.org_id = $4
             )
             SELECT DISTINCT e.event_id, e.org_id, e.source, e.topic, e.event_type,
                    e.event_time, e.ingestion_time, e.payload, e.media_type, e.media_ref,

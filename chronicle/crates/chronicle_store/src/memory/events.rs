@@ -20,7 +20,9 @@ impl EventStore for InMemoryBackend {
             for event in events {
                 ids.push(event.event_id);
                 let materialized = event.materialize_entity_refs("ingestion");
-                refs_store.extend(materialized);
+                for r in materialized {
+                    refs_store.push((event.org_id, r));
+                }
                 store.insert(event.event_id, event.clone());
             }
 
@@ -55,8 +57,9 @@ impl EventStore for InMemoryBackend {
             .filter(|e| query.time_range.as_ref().map_or(true, |r| r.contains(e.event_time)))
             .filter(|e| {
                 query.entity.as_ref().map_or(true, |(etype, eid)| {
-                    refs_store.iter().any(|r| {
-                        r.event_id == e.event_id
+                    refs_store.iter().any(|(o, r)| {
+                        *o == query.org_id
+                            && r.event_id == e.event_id
                             && r.entity_type == *etype
                             && r.entity_id == *eid
                     })
@@ -80,8 +83,8 @@ impl EventStore for InMemoryBackend {
 
         let matching_event_ids: Vec<EventId> = refs_store
             .iter()
-            .filter(|r| r.entity_type == query.entity_type && r.entity_id == query.entity_id)
-            .map(|r| r.event_id)
+            .filter(|(o, r)| *o == query.org_id && r.entity_type == query.entity_type && r.entity_id == query.entity_id)
+            .map(|(_, r)| r.event_id)
             .collect();
 
         let mut results: Vec<EventResult> = store

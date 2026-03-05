@@ -58,10 +58,12 @@ pub trait EventStore: Send + Sync + 'static {
 #[async_trait]
 pub trait EntityRefStore: Send + Sync + 'static {
     /// Add one or more entity refs. Idempotent (duplicates are ignored).
-    async fn add_refs(&self, refs: &[EntityRef]) -> Result<(), StoreError>;
+    ///
+    /// `org_id` is stored alongside the refs for tenant isolation.
+    async fn add_refs(&self, org_id: &OrgId, refs: &[EntityRef]) -> Result<(), StoreError>;
 
-    /// Get all entity refs for a specific event.
-    async fn get_refs_for_event(&self, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError>;
+    /// Get all entity refs for a specific event, scoped to the org.
+    async fn get_refs_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError>;
 
     /// Get all event IDs associated with an entity.
     async fn get_events_for_entity(
@@ -127,10 +129,12 @@ pub struct EntityInfo {
 #[async_trait]
 pub trait EventLinkStore: Send + Sync + 'static {
     /// Create a new link between two events. Validates no self-links.
-    async fn create_link(&self, link: &EventLink) -> Result<LinkId, StoreError>;
+    ///
+    /// `org_id` is stored on the link row for tenant isolation.
+    async fn create_link(&self, org_id: &OrgId, link: &EventLink) -> Result<LinkId, StoreError>;
 
-    /// Get links from/to a specific event.
-    async fn get_links_for_event(&self, event_id: &EventId) -> Result<Vec<EventLink>, StoreError>;
+    /// Get links from/to a specific event, scoped to the org.
+    async fn get_links_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EventLink>, StoreError>;
 
     /// Traverse the link graph from a starting event.
     ///
@@ -157,8 +161,8 @@ pub trait EmbeddingStore: Send + Sync + 'static {
     /// by structured criteria.
     async fn search(&self, query: &SemanticQuery) -> Result<Vec<EventResult>, StoreError>;
 
-    /// Check if an event already has an embedding stored.
-    async fn has_embedding(&self, event_id: &EventId) -> Result<bool, StoreError>;
+    /// Check if an event already has an embedding stored, scoped to the org.
+    async fn has_embedding(&self, org_id: &OrgId, event_id: &EventId) -> Result<bool, StoreError>;
 }
 
 /// An embedding for a single event.

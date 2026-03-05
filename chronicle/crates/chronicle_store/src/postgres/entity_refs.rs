@@ -12,7 +12,7 @@ use super::PostgresBackend;
 
 #[async_trait]
 impl EntityRefStore for PostgresBackend {
-    async fn add_refs(&self, refs: &[EntityRef]) -> Result<(), StoreError> {
+    async fn add_refs(&self, org_id: &OrgId, refs: &[EntityRef]) -> Result<(), StoreError> {
         for r in refs {
             sqlx::query(
                 "INSERT INTO entity_refs (event_id, org_id, entity_type, entity_id, created_by)
@@ -20,7 +20,7 @@ impl EntityRefStore for PostgresBackend {
                  ON CONFLICT DO NOTHING"
             )
             .bind(r.event_id.to_string())
-            .bind("") // org_id filled from event at query time
+            .bind(org_id.as_str())
             .bind(r.entity_type.as_str())
             .bind(r.entity_id.as_str())
             .bind(&r.created_by)
@@ -31,11 +31,12 @@ impl EntityRefStore for PostgresBackend {
         Ok(())
     }
 
-    async fn get_refs_for_event(&self, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
+    async fn get_refs_for_event(&self, org_id: &OrgId, event_id: &EventId) -> Result<Vec<EntityRef>, StoreError> {
         let rows = sqlx::query(
             "SELECT event_id, entity_type, entity_id, created_by, created_at
-             FROM entity_refs WHERE event_id = $1"
+             FROM entity_refs WHERE org_id = $1 AND event_id = $2"
         )
+        .bind(org_id.as_str())
         .bind(event_id.to_string())
         .fetch_all(&self.pool)
         .await
